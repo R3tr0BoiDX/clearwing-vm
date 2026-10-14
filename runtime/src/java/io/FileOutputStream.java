@@ -282,6 +282,15 @@ class FileOutputStream extends OutputStream
 		close0();
 	}
 
+	/**
+	 * Pushes buffered bytes to the OS. The JDK stream is unbuffered, so callers rely on
+	 * written data surviving a crash once flush() returns.
+	 */
+	@Override
+	public void flush() throws IOException {
+		flush0();
+	}
+
 	public FileChannel getChannel() {
 		return null;
 	}
@@ -299,4 +308,6 @@ class FileOutputStream extends OutputStream
 	}
 
 	private native void close0() throws IOException;
+
+	private native void flush0() throws IOException;
 }

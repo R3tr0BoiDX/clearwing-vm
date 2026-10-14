@@ -39,6 +39,15 @@ void M_java_io_FileOutputStream_writeBytes_Array1_byte_int_int_boolean(jcontext 
         throwIOException(ctx, nullptr);
 }
 
+void M_java_io_FileOutputStream_flush0(jcontext ctx, jobject self) {
+    auto stream = (java_io_FileOutputStream *) NULL_CHECK(self);
+    auto f = (FILE *) stream->F_file;
+    if (!f)
+        throwIOException(ctx, "File closed");
+    if (fflush(f))
+        throwIOException(ctx, nullptr);
+}
+
 void M_java_io_FileOutputStream_close0(jcontext ctx, jobject self) {
     auto stream = (java_io_FileOutputStream *) NULL_CHECK(self);
     auto f = (FILE *) stream->F_file;
