@@ -28,6 +28,17 @@ package java.util;
  * Version: CLDC 1.1 02/01/2002 (based on JDK 1.3) See Also:Date, TimeZone
  */
 public abstract class Calendar{
+
+    private boolean lenient = true;
+
+    public void setLenient(boolean lenient) {
+        this.lenient = lenient;
+    }
+
+    public boolean isLenient() {
+        return lenient;
+    }
+
     /**
      * This is the total number of fields in this calendar.
      */

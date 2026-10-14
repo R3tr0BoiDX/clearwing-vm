@@ -667,10 +667,6 @@ class GregorianCalendar extends Calendar {
         }
     }
     
-    boolean isLenient() {
-        return true;
-    }
-
     private long daysFromBaseYear(int iyear) {
         long year = iyear;
         
