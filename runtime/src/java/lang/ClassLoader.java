@@ -102,6 +102,10 @@ public abstract class ClassLoader extends Object {
         throw new UnsupportedOperationException();
     }
 
+    protected final Class<?> defineClass(String className, byte[] classRep, int offset, int length, java.security.ProtectionDomain protectionDomain) throws ClassFormatError {
+        throw new UnsupportedOperationException();
+    }
+
     protected final void resolveClass(Class<?> c) {
         if (c == null) {
             throw new NullPointerException();

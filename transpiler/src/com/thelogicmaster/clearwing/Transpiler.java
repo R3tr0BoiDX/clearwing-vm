@@ -236,7 +236,7 @@ public class Transpiler {
 		ArrayList<Supplier<InputStream>> sources = new ArrayList<>();
 		List<BytecodeClass> classes;
 		ArrayList<Closeable> parserCloseables = new ArrayList<>();
-		ScanResult scanResult = new ClassGraph().acceptPaths("regexodus/", "java/").enableClassInfo().ignoreClassVisibility().scan();
+		ScanResult scanResult = new ClassGraph().acceptPaths("regexodus/", "java/", "sun/").enableClassInfo().ignoreClassVisibility().scan();
 		parserCloseables.add(scanResult);
 		addScanResultSuppliers(scanResult, sources);
 
