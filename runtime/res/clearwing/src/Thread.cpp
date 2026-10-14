@@ -101,17 +101,20 @@ jobject M_java_lang_Thread_getStackTrace_R_Array1_java_lang_StackTraceElement(jc
     FrameInfo frameInfo { "java/lang/Thread:getStackTrace", 1 };
     auto frameRef = pushStackFrame(ctx, &frameInfo, frame);
 
-    jarray trace = createArray(ctx, &class_java_lang_StackTraceElement, ctx->stackDepth);
+    // Another thread's stack is read without stopping it, like the JDK this is only a snapshot
+    auto target = (jcontext) ((jthread) NULL_CHECK(self))->F_nativeContext;
+    int depth = target ? target->stackDepth : 0;
+    jarray trace = createArray(ctx, &class_java_lang_StackTraceElement, depth);
     frame[0].o = (jobject)trace;
 
-    for (int i = 0; i < ctx->stackDepth; i++) {
-        auto stackFrame = &ctx->frames[i];
-        std::string_view method = stackFrame->info->method ? stackFrame->info->method : "";
+    for (int i = 0; i < depth; i++) {
+        auto stackFrame = &target->frames[i];
+        std::string_view method = stackFrame->info && stackFrame->info->method ? stackFrame->info->method : "";
         auto separator = method.find(':');
         frame[1].o = (jobject)stringFromNative(ctx, separator != std::string_view::npos ? method.substr(0, separator) : "Unknown");
         frame[2].o = (jobject)stringFromNative(ctx, separator != std::string_view::npos ? method.substr(separator + 1) : "unknown");
         frame[3].o = frame[1].o;
-        ((jobject *)trace->data)[ctx->stackDepth - 1 - i] = constructObject<&class_java_lang_StackTraceElement, init_java_lang_StackTraceElement_java_lang_String_java_lang_String_java_lang_String_int>(ctx, frame[1].o, frame[2].o, frame[3].o, stackFrame->lineNumber);
+        ((jobject *)trace->data)[depth - 1 - i] = constructObject<&class_java_lang_StackTraceElement, init_java_lang_StackTraceElement_java_lang_String_java_lang_String_java_lang_String_int>(ctx, frame[1].o, frame[2].o, frame[3].o, stackFrame->lineNumber);
     }
 
     popStackFrame(ctx);
