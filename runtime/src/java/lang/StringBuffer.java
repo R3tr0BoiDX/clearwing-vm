@@ -59,6 +59,15 @@ public final class StringBuffer implements CharSequence, Appendable {
         internal = new StringBuilder(str);
     }
 
+    public StringBuffer(java.lang.CharSequence seq){
+        internal = new StringBuilder(seq);
+    }
+
+    public StringBuffer append(StringBuffer sb) {
+        internal.append(sb == null ? "null" : sb.toString());
+        return this;
+    }
+
     /**
      * Appends the string representation of the boolean argument to the string buffer.
      * The argument is converted to a string as if by the method String.valueOf, and the characters of that string are then appended to this string buffer.

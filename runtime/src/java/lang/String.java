@@ -85,6 +85,21 @@ public final class String implements java.lang.CharSequence, Comparable<String> 
     }
 
     /**
+     * Deprecated JDK constructor: each char is (hibyte << 8) | ascii byte
+     */
+    @Deprecated
+    public String(byte[] ascii, int hibyte, int offset, int count) {
+        if (offset < 0 || count < 0 || offset > ascii.length - count)
+            throw new StringIndexOutOfBoundsException();
+        char[] chars = new char[count];
+        hibyte = (hibyte & 0xff) << 8;
+        for (int i = 0; i < count; i++)
+            chars[i] = (char) (hibyte | (ascii[offset + i] & 0xff));
+        value = chars;
+        this.count = count;
+    }
+
+    /**
      * Construct a new String by converting the specified subarray of bytes using the platform's default character encoding. The length of the new String is a function of the encoding, and hence may not be equal to the length of the subarray.
      * bytes - The bytes to be converted into charactersoff - Index of the first byte to convertlen - Number of bytes to convert
      * JDK1.1
@@ -407,6 +422,17 @@ public final class String implements java.lang.CharSequence, Comparable<String> 
     /**
      * Convert this String into bytes according to the platform's default character encoding, storing the result into a new byte array.
      */
+    /**
+     * Deprecated JDK method: copies the low byte of each char
+     */
+    @Deprecated
+    public void getBytes(int srcBegin, int srcEnd, byte[] dst, int dstBegin) {
+        if (srcBegin < 0 || srcBegin > srcEnd || srcEnd > length())
+            throw new StringIndexOutOfBoundsException();
+        for (int i = srcBegin; i < srcEnd; i++)
+            dst[dstBegin++] = (byte) charAt(i);
+    }
+
     public byte[] getBytes(){
         try {
             return getBytes("UTF-8"); 

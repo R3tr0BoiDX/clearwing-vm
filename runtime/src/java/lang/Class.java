@@ -405,6 +405,24 @@ public final class Class<T> implements java.lang.reflect.Type {
         return outerClass;
     }
 
+    /**
+     * Approximation: local and anonymous classes are not tracked separately, so this is the declaring class
+     */
+    public Class<?> getEnclosingClass() {
+        return getDeclaringClass();
+    }
+
+    /**
+     * Generic signatures are not retained by the transpiler
+     */
+    public TypeVariable<?>[] getTypeParameters() {
+        return new TypeVariable<?>[0];
+    }
+
+    public java.security.ProtectionDomain getProtectionDomain() {
+        return null;
+    }
+
     public Field[] getDeclaredFields() {
         ensureInitialized();
         return fields;
