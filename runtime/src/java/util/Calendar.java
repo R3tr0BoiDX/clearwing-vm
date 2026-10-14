@@ -521,8 +521,20 @@ public abstract class Calendar{
         areFieldsSet = false;
     }
 
-    int getFirstDayOfWeek() {
-        return SUNDAY;
+    private int firstDayOfWeek = SUNDAY;
+
+    public int getFirstDayOfWeek() {
+        return firstDayOfWeek;
+    }
+
+    public void setFirstDayOfWeek(int value) {
+        firstDayOfWeek = value;
+        areFieldsSet = false;
+    }
+
+    public void setMinimalDaysInFirstWeek(int value) {
+        minimalDaysInFirstWeek = value;
+        areFieldsSet = false;
     }
 
     /**

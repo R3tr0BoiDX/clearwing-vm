@@ -667,6 +667,28 @@ class GregorianCalendar extends Calendar {
         }
     }
     
+    public final Date getGregorianChange() {
+        return new Date(gregorianCutover);
+    }
+
+    public void setGregorianChange(Date date) {
+        gregorianCutover = date.getTime();
+        GregorianCalendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+        cal.setTime(date);
+        changeYear = cal.get(YEAR);
+        if (cal.get(ERA) == BC)
+            changeYear = 1 - changeYear;
+        julianSkew = ((changeYear - 2000) / 400) + julianError() - ((changeYear - 2000) / 100);
+        int dayOfYear = cal.get(DAY_OF_YEAR);
+        if (dayOfYear < julianSkew) {
+            currentYearSkew = dayOfYear - 1;
+            lastYearSkew = julianSkew - dayOfYear + 1;
+        } else {
+            lastYearSkew = 0;
+            currentYearSkew = julianSkew;
+        }
+    }
+
     private long daysFromBaseYear(int iyear) {
         long year = iyear;
         
