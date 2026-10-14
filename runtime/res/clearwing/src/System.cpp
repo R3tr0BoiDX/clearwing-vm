@@ -39,18 +39,20 @@ void SM_java_lang_System_gc(jcontext ctx) {
 }
 
 jobject SM_java_lang_System_getProperty_java_lang_String_R_java_lang_String(jcontext ctx, jobject keyObj) {
-    static std::map<const char *, const char *> cache;
+    // Keyed by value: the native string pointer belongs to the Java string and can be freed or reused
+    static std::map<std::string, const char *> cache;
     static std::mutex lock;
     auto key = stringToNative(ctx, (jstring) NULL_CHECK(keyObj));
     if (!strcmp(key, "java.runtime.name"))
         return (jobject) createStringLiteral(ctx, u8"Clearwing"_j);
     std::lock_guard guard(lock);
     auto it = cache.find(key);
+    const char *value;
     if (it != cache.end())
-        return (jobject) stringFromNative(ctx, it->second);
-    auto &entry = cache[key];
-    entry = getSystemProperty(key);
-    return entry ? (jobject) stringFromNative(ctx, entry) : nullptr;
+        value = it->second;
+    else
+        value = cache[key] = getSystemProperty(key);
+    return value ? (jobject) stringFromNative(ctx, value) : nullptr;
 }
 
 jint SM_java_lang_System_identityHashCode_java_lang_Object_R_int(jcontext ctx, jobject obj) {
