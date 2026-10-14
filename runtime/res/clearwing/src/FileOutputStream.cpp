@@ -1,5 +1,6 @@
 #include "java/io/FileOutputStream.h"
 #include "java/io/FileNotFoundException.h"
+#include <unistd.h>
 
 extern "C" {
 
@@ -46,6 +47,11 @@ void M_java_io_FileOutputStream_flush0(jcontext ctx, jobject self) {
         throwIOException(ctx, "File closed");
     if (fflush(f))
         throwIOException(ctx, nullptr);
+#ifdef __SWITCH__
+    // fflush only hands the bytes to the fs service; without a flush they are not committed to the file
+    if (fsync(fileno(f)))
+        throwIOException(ctx, nullptr);
+#endif
 }
 
 void M_java_io_FileOutputStream_close0(jcontext ctx, jobject self) {
