@@ -599,7 +599,9 @@ public class BytecodeClass {
 					builder.append(", (intptr_t) &").append(field.getName());
 				else
 					builder.append(", offsetof(").append(qualifiedName).append(", ").append(field.getName()).append(")");
-				builder.append(", \"").append(field.getDesc() == null ? "" : field.getDesc()).append("\", ").append(field.getAccess()).append(" },\n");
+				// Prefer the generic signature so Field.getGenericType() keeps type arguments
+				String fieldSignature = field.getSignature() != null ? field.getSignature() : field.getDesc();
+				builder.append(", \"").append(fieldSignature == null ? "" : fieldSignature).append("\", ").append(field.getAccess()).append(" },\n");
 			}
 			builder.append("};\n\n");
 		}

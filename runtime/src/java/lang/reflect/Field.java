@@ -73,8 +73,11 @@ public final class Field {
         int index = 0;
         int dimensions = 0;
         int end = signature.endsWith(";") ? signature.length() - 2 : signature.length() - 1;
-        if (signature.charAt(0) == '+' || signature.charAt(0) == '-')
-            index++;
+        if (signature.charAt(0) == '+' || signature.charAt(0) == '-') {
+            // Bounded wildcard, as in the JDK it is a WildcardType rather than its bound
+            Type bound = parseSignature(signature.substring(1));
+            return signature.charAt(0) == '+' ? new WildcardTypeImpl(bound, null) : new WildcardTypeImpl(Object.class, bound);
+        }
         while (signature.charAt(index) == '[') {
             dimensions++;
             index++;
@@ -100,6 +103,11 @@ public final class Field {
                             argDepth++;
                         else if (signature.charAt(i) == '>')
                             argDepth--;
+                        else if (signature.charAt(i) == '*' && argDepth == 0) {
+                            // Unbounded wildcard has no terminating ';'
+                            args.add("*");
+                            argOffset = i + 1;
+                        }
                         else if (signature.charAt(i) == ';' && argDepth == 0) {
                             args.add(signature.substring(argOffset, i + 1));
                             argOffset = i + 1;
@@ -161,7 +169,8 @@ public final class Field {
             try {
                 genericType = signature == null || signature.isEmpty() ? type : parseSignature(signature);
             } catch (ClassNotFoundException e) {
-                throw new MalformedParameterizedTypeException("Failed to find class: " + e.getMessage());
+                // Type arguments can name classes the transpiler optimized out, fall back to the erased type
+                genericType = type;
             }
         return genericType;
     }
@@ -254,6 +263,26 @@ public final class Field {
             if (annotationType == annotation.annotationType())
                 return (A)annotation;
         return null;
+    }
+
+    private static class WildcardTypeImpl implements WildcardType {
+        private final Type[] upperBounds;
+        private final Type[] lowerBounds;
+
+        WildcardTypeImpl(Type upperBound, Type lowerBound) {
+            upperBounds = new Type[] { upperBound };
+            lowerBounds = lowerBound == null ? new Type[0] : new Type[] { lowerBound };
+        }
+
+        @Override
+        public Type[] getUpperBounds() {
+            return upperBounds.clone();
+        }
+
+        @Override
+        public Type[] getLowerBounds() {
+            return lowerBounds.clone();
+        }
     }
 
     private static class GenericArrayTypeImpl implements GenericArrayType {
