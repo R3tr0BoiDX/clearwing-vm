@@ -28,6 +28,9 @@ jint M_java_io_FileInputStream_readBytes_Array1_byte_int_int_R_int(jcontext ctx,
     auto f = (FILE *) stream->F_file;
     if (f) {
         auto array = (jarray) NULL_CHECK(bytes);
+        // Like the JDK, reading zero bytes is not end of stream
+        if (len == 0)
+            return 0;
         auto read = fread((char *) array->data + off, 1, len, f);
         if (!read)
             return -1;
@@ -43,10 +46,9 @@ jlong M_java_io_FileInputStream_skip_long_R_long(jcontext ctx, jobject self, jlo
     if (!f)
         throwIOException(ctx, "File closed");
     auto pos = ftell(f);
-    auto result = fseek(f, n, SEEK_CUR);
-    if (result < 0)
+    if (fseek(f, n, SEEK_CUR) < 0)
         throwIOException(ctx, nullptr);
-    return result - pos;
+    return ftell(f) - pos;
 }
 
 jint M_java_io_FileInputStream_available_R_int(jcontext ctx, jobject self) {
