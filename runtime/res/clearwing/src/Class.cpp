@@ -89,6 +89,29 @@ jobject SM_java_lang_Class_forName_java_lang_String_R_java_lang_Class(jcontext c
         auto clazz = (jobject) classForName(nameStr.c_str());
         if (clazz)
             return clazz;
+        // Array classes use descriptor names, like "[I" or "[Ljava.lang.String;"
+        if (!nameStr.empty() && nameStr[0] == '[') {
+            int dimensions = 0;
+            while (dimensions < (int)nameStr.size() && nameStr[dimensions] == '[')
+                dimensions++;
+            auto element = nameStr.substr(dimensions);
+            jclass component = nullptr;
+            if (element.size() == 1) {
+                switch (element[0]) {
+                    case 'Z': component = &class_boolean; break;
+                    case 'B': component = &class_byte; break;
+                    case 'C': component = &class_char; break;
+                    case 'S': component = &class_short; break;
+                    case 'I': component = &class_int; break;
+                    case 'J': component = &class_long; break;
+                    case 'F': component = &class_float; break;
+                    case 'D': component = &class_double; break;
+                }
+            } else if (element.size() > 2 && element[0] == 'L' && element.back() == ';')
+                component = classForName(element.substr(1, element.size() - 2).c_str());
+            if (component)
+                return (jobject) getArrayClass(component, dimensions);
+        }
     }
     constructAndThrowMsg<&class_java_lang_ClassNotFoundException, init_java_lang_ClassNotFoundException_java_lang_String>(ctx, name);
     return nullptr;
