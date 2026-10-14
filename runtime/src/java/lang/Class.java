@@ -40,6 +40,7 @@ import java.util.Arrays;
 public final class Class<T> implements java.lang.reflect.Type {
 
     private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
+    private static final Annotation[] EMPTY_ANNOTATIONS = new Annotation[0];
 
     private long nativeName;
     private Class<?> parentClass;
@@ -285,8 +286,7 @@ public final class Class<T> implements java.lang.reflect.Type {
      *
      */
     public <A extends Annotation> A getAnnotation(Class<?> annotationType) {
-        ensureInitialized();
-        for (Annotation annotation: annotations)
+        for (Annotation annotation: getDeclaredAnnotations())
             if (annotationType == annotation.annotationType())
                 return (A)annotation;
         return null;
@@ -307,7 +307,8 @@ public final class Class<T> implements java.lang.reflect.Type {
      */
     public Annotation[] getDeclaredAnnotations() {
         ensureInitialized();
-        return annotations;
+        // Classes without reflection metadata have no annotation array
+        return annotations == null ? EMPTY_ANNOTATIONS : annotations;
     }
 
     /**
