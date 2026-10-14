@@ -39,6 +39,8 @@ import java.util.Arrays;
  */
 public final class Class<T> implements java.lang.reflect.Type {
 
+    private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
+
     private long nativeName;
     private Class<?> parentClass;
     private int size;
@@ -420,14 +422,14 @@ public final class Class<T> implements java.lang.reflect.Type {
 
     public Constructor getDeclaredConstructor(Class<?> ... types) throws NoSuchMethodException {
         for (Constructor constructor: getDeclaredConstructors())
-            if (Arrays.equals(constructor.getParameterTypes(), types))
+            if (Arrays.equals(constructor.getParameterTypes(), types == null ? EMPTY_TYPES : types))
                 return constructor;
         throw new NoSuchMethodException();
     }
 
     public Constructor getConstructor(Class<?> ... types) throws NoSuchMethodException {
         for (Constructor constructor: getConstructors())
-            if (Arrays.equals(constructor.getParameterTypes(), types))
+            if (Arrays.equals(constructor.getParameterTypes(), types == null ? EMPTY_TYPES : types))
                 return constructor;
         throw new NoSuchMethodException();
     }
@@ -438,25 +440,24 @@ public final class Class<T> implements java.lang.reflect.Type {
     }
 
     public Constructor[] getConstructors() {
+        // Constructors are not inherited, only this class's public ones count
         ArrayList<Constructor> constructors = new ArrayList<>();
         for (Constructor constructor: getDeclaredConstructors())
             if ((constructor.getModifiers() & Modifier.PUBLIC) != 0)
                 constructors.add(constructor);
-        if (getSuperclass() != null)
-            constructors.addAll(Arrays.asList(getSuperclass().getConstructors()));
         return constructors.toArray(new Constructor[0]);
     }
 
     public Method getDeclaredMethod(String name, Class<?> ... types) throws NoSuchMethodException {
         for (Method method: getDeclaredMethods())
-            if (method.getName().equals(name) && Arrays.equals(method.getParameterTypes(), types))
+            if (method.getName().equals(name) && Arrays.equals(method.getParameterTypes(), types == null ? EMPTY_TYPES : types))
                 return method;
         throw new NoSuchMethodException();
     }
 
     public Method getMethod(String name, Class<?> ... types) throws NoSuchMethodException {
         for (Method method: getMethods())
-            if (method.getName().equals(name) && Arrays.equals(method.getParameterTypes(), types))
+            if (method.getName().equals(name) && Arrays.equals(method.getParameterTypes(), types == null ? EMPTY_TYPES : types))
                 return method;
         throw new NoSuchMethodException();
     }
