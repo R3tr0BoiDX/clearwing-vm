@@ -478,15 +478,33 @@ public final class String implements java.lang.CharSequence, Comparable<String> 
     }
 
     public String[] split(String regex, int i) {
-        return Pattern.compile(regex).split(this, i);
+        return PatternCache.get(regex).split(this, i);
+    }
+
+    /** Compiling a pattern is slow here and e.g. libGDX's ObjLoader splits every line, so patterns are reused */
+    private static class PatternCache {
+        private static final java.util.HashMap<String, Pattern> patterns = new java.util.HashMap<>();
+
+        static Pattern get(String regex) {
+            synchronized (patterns) {
+                Pattern pattern = patterns.get(regex);
+                if (pattern == null) {
+                    if (patterns.size() >= 64)
+                        patterns.clear();
+                    pattern = Pattern.compile(regex);
+                    patterns.put(regex, pattern);
+                }
+                return pattern;
+            }
+        }
     }
 
     public String replaceAll(String a, String b) {
-        return Pattern.compile(a).matcher(this).replaceAll(b);
+        return PatternCache.get(a).matcher(this).replaceAll(b);
     }
 
     public String replaceFirst(String a, String b) {
-        return Pattern.compile(a).matcher(this).replaceFirst(b);
+        return PatternCache.get(a).matcher(this).replaceFirst(b);
     }
 
     public native String replace(CharSequence a, CharSequence b);/* {
