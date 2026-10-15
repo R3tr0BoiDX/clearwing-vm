@@ -1452,7 +1452,20 @@ public final class Character implements Comparable<Character>{
      * @return object instance
      */
     public static Character valueOf(char i) {
+        if (i <= 127) {
+            return Cache.values[i];
+        }
         return new Character(i);
+    }
+
+    /** Like the JDK, valueOf returns the same instances for 0 to 127, which also saves allocating */
+    private static class Cache {
+        static final Character[] values = new Character[128];
+
+        static {
+            for (int i = 0; i < 128; i++)
+                values[i] = new Character((char) (i));
+        }
     }
 
     /**

@@ -110,7 +110,20 @@ public final class Short extends Number implements Comparable<Short> {
      * @return object instance
      */
     public static Short valueOf(short i) {
+        if (i >= -128 && i <= 127) {
+            return Cache.values[i + 128];
+        }
         return new Short(i);
+    }
+
+    /** Like the JDK, valueOf returns the same instances for -128 to 127, which also saves allocating */
+    private static class Cache {
+        static final Short[] values = new Short[256];
+
+        static {
+            for (int i = 0; i < 256; i++)
+                values[i] = new Short((short) (i - 128));
+        }
     }
 
     public static Short valueOf(String s) {

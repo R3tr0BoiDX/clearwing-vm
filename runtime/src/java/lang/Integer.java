@@ -482,7 +482,20 @@ public final class Integer extends Number implements Comparable<Integer> {
 	 * @return object instance
 	 */
 	public static Integer valueOf (int i) {
+		if (i >= -128 && i <= 127) {
+			return Cache.values[i + 128];
+		}
 		return new Integer(i);
+	}
+
+	/** Like the JDK, valueOf returns the same instances for -128 to 127, which also saves allocating */
+	private static class Cache {
+		static final Integer[] values = new Integer[256];
+
+		static {
+			for (int i = 0; i < 256; i++)
+				values[i] = new Integer((int) (i - 128));
+		}
 	}
 
 	/**

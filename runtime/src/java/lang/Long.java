@@ -388,7 +388,20 @@ public final class Long extends Number implements Comparable<Long> {
 	 * @return object instance
 	 */
 	public static Long valueOf (long i) {
+		if (i >= -128 && i <= 127) {
+			return Cache.values[(int) i + 128];
+		}
 		return new Long(i);
+	}
+
+	/** Like the JDK, valueOf returns the same instances for -128 to 127, which also saves allocating */
+	private static class Cache {
+		static final Long[] values = new Long[256];
+
+		static {
+			for (int i = 0; i < 256; i++)
+				values[i] = new Long((long) (i - 128));
+		}
 	}
 
 	public static Long valueOf(String s) {

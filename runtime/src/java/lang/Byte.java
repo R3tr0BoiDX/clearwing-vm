@@ -117,7 +117,17 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return object instance
      */
     public static Byte valueOf(byte i) {
-        return new Byte(i);
+        return Cache.values[i + 128];
+    }
+
+    /** Like the JDK, valueOf returns the same instance for each value, which also saves allocating */
+    private static class Cache {
+        static final Byte[] values = new Byte[256];
+
+        static {
+            for (int i = 0; i < 256; i++)
+                values[i] = new Byte((byte) (i - 128));
+        }
     }
 
     public static Byte valueOf(String s) {
