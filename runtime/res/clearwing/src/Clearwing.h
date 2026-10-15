@@ -268,6 +268,14 @@ jstring concatStringsRecipe(jcontext ctx, const char *recipe, int argCount, ...)
 void acquireCriticalLock();
 void releaseCriticalLock();
 void safepointSuspend(jcontext ctx);
+void safepointSlow(jcontext ctx);
+
+// Sampling profiler, see Profiler.cpp
+extern volatile bool profileRequested;
+void profileSample(jcontext ctx);
+void profileGC(double seconds, int64_t heapUsage);
+void startProfiler(jcontext ctx, const char *path, int intervalMicros, int reportSeconds);
+void stopProfiler();
 
 jmp_buf *pushExceptionFrame(jframe frame, jclass type);
 jobject popExceptionFrame(jframe frame);
@@ -363,8 +371,8 @@ jint longCompare(jlong value1, jlong value2);
 
 // When calling this, all objects must be safely stored, either on a stack frame, a class/object field, or have the mark value set to one of the special constants
 #define SAFEPOINT() \
-    if (suspendVM)\
-        safepointSuspend(ctx)
+    if (suspendVM || profileRequested)\
+        safepointSlow(ctx)
 
 #define POP_N(count) \
     sp -= count

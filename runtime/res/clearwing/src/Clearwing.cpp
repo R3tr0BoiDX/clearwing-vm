@@ -136,6 +136,7 @@ jcontext initVM() {
 void shutdownVM(jcontext ctx) {
     if (exiting) return;
     exiting = true;
+    stopProfiler();
     if (ctx) {
         ctx->dead = true;
         ctx->suspended = true;
@@ -765,6 +766,8 @@ void runGC(jcontext ctx) {
 
     lastCollectionHeapUsage = heapUsage;
 
+    profileGC(std::chrono::duration<double>(std::chrono::system_clock::now() - blockTime).count(), (int64_t) heapUsage);
+
     running = false;
 
     popStackFrame(ctx, nullptr);
@@ -799,6 +802,14 @@ void acquireCriticalLock() {
 /// Releases the global critical lock. Does not throw exceptions.
 void releaseCriticalLock() {
     criticalLock.unlock();
+}
+
+/// Handles a safepoint where the VM is suspended or a profiler sample is due
+void safepointSlow(jcontext ctx) {
+    if (profileRequested)
+        profileSample(ctx);
+    if (suspendVM)
+        safepointSuspend(ctx);
 }
 
 /// Suspends a thread while the VM is suspended. Does not throw exceptions.
