@@ -477,8 +477,58 @@ public final class String implements java.lang.CharSequence, Comparable<String> 
         return split(regex, 0);
     }
 
-    public String[] split(String regex, int i) {
-        return PatternCache.get(regex).split(this, i);
+    public String[] split(String regex, int limit) {
+        // Like the JDK, split on a literal character without regex, and also on "\\s+" (libGDX's ObjLoader splits
+        // every line on it, a Matcher per call is slow here)
+        char ch = 0;
+        if (((regex.count == 1 && ".$|()[{^?*+\\".indexOf(ch = regex.charAt(0)) == -1)
+                || (regex.count == 2 && regex.charAt(0) == '\\' && !Character.isLetterOrDigit(ch = regex.charAt(1)) && ch < 128))
+                && ch != 0)
+            return fastSplit(ch, limit);
+        if (regex.equals("\\s+"))
+            return fastSplit((char) 0, limit);
+        return PatternCache.get(regex).split(this, limit);
+    }
+
+    private static boolean isRegexSpace(char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\u000B' || c == '\f' || c == '\r';
+    }
+
+    /** Splits on ch, or on runs of regex whitespace if ch is 0, with the semantics of Pattern.split */
+    private String[] fastSplit(char ch, int limit) {
+        java.util.ArrayList<String> list = new java.util.ArrayList<>();
+        int off = 0, next = 0;
+        while (limit <= 0 || list.size() < limit - 1) {
+            int end;
+            if (ch != 0) {
+                next = indexOf(ch, off);
+                if (next == -1)
+                    break;
+                end = next + 1;
+            } else {
+                next = off;
+                while (next < count && !isRegexSpace(value[next]))
+                    next++;
+                if (next == count)
+                    break;
+                end = next + 1;
+                while (end < count && isRegexSpace(value[end]))
+                    end++;
+            }
+            list.add(substring(off, next));
+            off = end;
+        }
+        if (list.isEmpty())
+            return new String[] {this};
+        list.add(substring(off, count));
+        int size = list.size();
+        if (limit == 0)
+            while (size > 0 && list.get(size - 1).isEmpty())
+                size--;
+        String[] result = new String[size];
+        for (int i = 0; i < size; i++)
+            result[i] = list.get(i);
+        return result;
     }
 
     /** Compiling a pattern is slow here and e.g. libGDX's ObjLoader splits every line, so patterns are reused */
