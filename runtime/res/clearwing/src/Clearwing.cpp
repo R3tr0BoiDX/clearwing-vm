@@ -64,6 +64,7 @@ static volatile bool exiting;
 static thread_local jcontext threadContext;
 
 std::atomic_int64_t heapUsage;
+int64_t totalAllocations; // For the profiler, racy but close enough
 std::atomic_int64_t allocationsSinceCollection;
 int64_t lastCollectionHeapUsage;
 
@@ -405,6 +406,7 @@ jobject gcAllocObject(jcontext ctx, jclass clazz, int mark) {
     auto object = (jobject) new char[clazz->size]{};
     heapUsage += clazz->size;
     allocationsSinceCollection++;
+    totalAllocations++;
 
     *object = {
         .clazz = (intptr_t) clazz,

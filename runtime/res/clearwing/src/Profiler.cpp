@@ -18,6 +18,7 @@
 #endif
 
 volatile bool profileRequested;
+extern int64_t totalAllocations;
 
 namespace {
     struct Counts {
@@ -33,6 +34,7 @@ namespace {
     int collections;
     double collectionSeconds;
     int64_t lastHeapUsage;
+    int64_t lastAllocations;
     jcontext profiled;
     std::thread *timer;
     volatile bool running;
@@ -59,8 +61,11 @@ namespace {
             collections = 0;
             collectionSeconds = 0;
         }
-        fprintf(file, "=== %.1f s to %.1f s: %d samples of %d requested, %d GCs took %.2f s, heap %lld MB\n"
-                "  total%%  self%%  method\n", start, end, total, requested, gcs, gcSeconds, (long long) (heap >> 20));
+        int64_t allocations = totalAllocations - lastAllocations;
+        lastAllocations += allocations;
+        fprintf(file, "=== %.1f s to %.1f s: %d samples of %d requested, %d GCs took %.2f s, heap %lld MB, %lld k allocations\n"
+                "  total%%  self%%  method\n", start, end, total, requested, gcs, gcSeconds, (long long) (heap >> 20),
+                (long long) (allocations / 1000));
         if (total == 0)
             return;
         std::sort(sorted.begin(), sorted.end(), [](auto &a, auto &b) { return a.second.total > b.second.total; });
