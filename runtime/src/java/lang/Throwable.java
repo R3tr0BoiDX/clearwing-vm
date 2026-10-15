@@ -40,6 +40,7 @@ public class Throwable{
     private String stack;
     private java.util.List<Throwable> suppressed;
     private StackTraceElement[] stackTrace;
+    private long[] frames; // Method names and line numbers, innermost first, made into stackTrace and stack on demand
     
     /**
      * Constructs a new Throwable with null as its error message string.
@@ -63,6 +64,13 @@ public class Throwable{
     }
 
     public String getStack() {
+        if (stack == null && frames != null) {
+            StringBuilder builder = new StringBuilder(getClass().getName()).append('\n');
+            for (StackTraceElement element : getStackTrace())
+                builder.append(element.getClassName()).append(':').append(element.getMethodName()).append(':')
+                        .append(element.getLineNumber()).append('\n');
+            stack = builder.toString();
+        }
         return stack;
     }
     
@@ -110,7 +118,7 @@ public class Throwable{
      * The format of the backtrace information depends on the implementation.
      */
     public void printStackTrace(){
-        System.out.println(stack);
+        System.out.println(getStack());
         if (cause != null) {
             System.out.println("Caused by ");
             cause.printStackTrace();
@@ -118,7 +126,7 @@ public class Throwable{
     }
 
     public void printStackTrace(PrintStream s) {
-        s.println(stack);
+        s.println(getStack());
         if (cause != null) {
             s.println("Caused by ");
             cause.printStackTrace(s);
@@ -130,7 +138,7 @@ public class Throwable{
     }
 
     public void printStackTrace(PrintWriter s) {
-        s.println(stack);
+        s.println(getStack());
         if (cause != null) {
             s.println("Caused by ");
             cause.printStackTrace(s);
@@ -143,8 +151,12 @@ public class Throwable{
     
     
     public StackTraceElement[] getStackTrace() {
+        if (stackTrace == null && frames != null)
+            stackTrace = buildStackTrace(frames);
         return stackTrace;
     }
+
+    private static native StackTraceElement[] buildStackTrace(long[] frames);
     
     public void setStackTrace(StackTraceElement[] el) {
         stackTrace = el;
