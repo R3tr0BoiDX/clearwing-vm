@@ -96,7 +96,7 @@ jclass getArrayClass(jclass componentType, int dimensions) {
                 .markFunction = (jref) mark_array,
                 .arrayDimensions = (jint) vector.size() + 1,
                 .componentClass = (jref) component,
-                .access = 0x400,
+                .access = (componentType->access & 0x7) | 0x410, // Like the JVM: final abstract, visibility of the element type
                 .interfaceCount = 0, // Todo: Cloneable
                 .nativeInterfaces = (jref) nullptr,
                 .fieldCount = 0,

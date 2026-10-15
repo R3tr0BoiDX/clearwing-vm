@@ -78,15 +78,15 @@ static void markPrimitive(jobject object, jint mark, jint depth) {}
 static void clinitPrimitive(jcontext ctx) {}
 
 // Todo: Extend `Type`
-Class class_byte { .nativeName = (intptr_t)"B", .size = sizeof(jbyte), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_char { .nativeName = (intptr_t)"C", .size = sizeof(jchar), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_short { .nativeName = (intptr_t)"S", .size = sizeof(jshort), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_int { .nativeName = (intptr_t)"I", .size = sizeof(jint), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_long { .nativeName = (intptr_t)"J", .size = sizeof(jlong), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_float { .nativeName = (intptr_t)"F", .size = sizeof(jfloat), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_double { .nativeName = (intptr_t)"D", .size = sizeof(jdouble), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_boolean { .nativeName = (intptr_t)"Z", .size = sizeof(jbool), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
-Class class_void { .nativeName = (intptr_t)"V", .size = 0, .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
+Class class_byte { .nativeName = (intptr_t)"B", .size = sizeof(jbyte), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_char { .nativeName = (intptr_t)"C", .size = sizeof(jchar), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_short { .nativeName = (intptr_t)"S", .size = sizeof(jshort), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_int { .nativeName = (intptr_t)"I", .size = sizeof(jint), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_long { .nativeName = (intptr_t)"J", .size = sizeof(jlong), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_float { .nativeName = (intptr_t)"F", .size = sizeof(jfloat), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_double { .nativeName = (intptr_t)"D", .size = sizeof(jdouble), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_boolean { .nativeName = (intptr_t)"Z", .size = sizeof(jbool), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
+Class class_void { .nativeName = (intptr_t)"V", .size = 0, .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x411 };
 
 void runVM(main_ptr entrypoint) {
     auto mainContext = initVM();
