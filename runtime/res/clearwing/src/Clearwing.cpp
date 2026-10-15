@@ -1,5 +1,7 @@
 #include "Clearwing.h"
 
+#include <algorithm>
+
 #include "java/lang/String.h"
 #include "java/lang/Class.h"
 #include "java/lang/Thread.h"
@@ -193,17 +195,18 @@ bool registerClass(jclass clazz) {
             .gcMark = GC_MARK_ETERNAL,
             .vtable = (intptr_t) vtable_java_lang_Class,
     };
-    auto instanceCache = new std::set<jclass>;
+    std::set<jclass> instanceCache;
     std::function<void(jclass)> processClass;
     processClass = [&](jclass cls) {
-        instanceCache->emplace(cls);
+        instanceCache.emplace(cls);
         if (cls->parentClass)
             processClass((jclass)cls->parentClass);
         for (int i = 0; i < cls->interfaceCount; i++)
             processClass(((jclass *)cls->nativeInterfaces)[i]);
     };
     processClass(clazz);
-    clazz->instanceOfCache = (intptr_t) instanceCache;
+    // Sorted, for a binary search on contiguous memory instead of walking a tree
+    clazz->instanceOfCache = (intptr_t) new std::vector<jclass>(instanceCache.begin(), instanceCache.end());
     registryMutex->unlock();
     return true;
 }
@@ -337,7 +340,16 @@ bool isAssignableFrom(jcontext ctx, jclass type, jclass assignee) {
     if (type->arrayDimensions > 0 and assignee->arrayDimensions > 0)
         return isAssignableFrom(ctx, (jclass) type->componentClass, (jclass) assignee->componentClass);
 
-    return ((std::set<jclass> *)assignee->instanceOfCache)->contains(type);
+    // A class that isn't an interface can only be a superclass, and walking up is cheaper than any lookup
+    if (!(type->access & 0x200)) { // ACC_INTERFACE
+        for (auto cls = (jclass) assignee->parentClass; cls; cls = (jclass) cls->parentClass)
+            if (cls == type)
+                return true;
+        return false;
+    }
+
+    auto supertypes = (std::vector<jclass> *) assignee->instanceOfCache;
+    return std::binary_search(supertypes->begin(), supertypes->end(), type);
 }
 
 /// Checks whether an object is an instance or inherits from a given type. Does not throw exceptions.
@@ -355,9 +367,24 @@ void *resolveInterfaceMethod(jcontext ctx, jclass interface, int method, jobject
 
     auto objectClass = (jclass) object->clazz;
 
+    // A small per-thread cache in front of the locked maps (their vectors never change or move once added)
+    struct CacheEntry {
+        jclass interface;
+        jclass objectClass;
+        const std::vector<int> *offsets;
+    };
+    static thread_local CacheEntry cache[64];
+    auto &cached = cache[(((uintptr_t) interface >> 4) * 31 + ((uintptr_t) objectClass >> 4)) & 63];
+    if (cached.interface == interface && cached.objectClass == objectClass) {
+        int offset = (int) cached.offsets->size() <= method ? -1 : (*cached.offsets)[method];
+        if (offset == -1)
+            constructAndThrow<&class_java_lang_NoSuchMethodError, init_java_lang_NoSuchMethodError>(ctx);
+        return ((void **) object->vtable)[offset];
+    }
+
     int offset;
     {
-        std::lock_guard guard(lock); // Todo: Making thread_local rather than locking is probably much faster
+        std::lock_guard guard(lock);
 
         std::map<jclass, std::vector<int>> &objectMappings = mappings[interface];
 
@@ -380,10 +407,12 @@ void *resolveInterfaceMethod(jcontext ctx, jclass interface, int method, jobject
                 }
                 offsets[i] = found;
             }
-            objectMappings[objectClass] = offsets;
+            auto &stored = objectMappings[objectClass] = offsets;
+            cached = {interface, objectClass, &stored};
             offset = offsets[method];
         } else {
             auto &offsets = offsetsIt->second;
+            cached = {interface, objectClass, &offsets};
             offset = (int)offsets.size() <= method ? -1 : offsets[method];
         }
     }
