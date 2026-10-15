@@ -148,12 +148,16 @@ void shutdownVM(jcontext ctx) {
             if (threadContext->dead) continue;
             done = false;
             threadContext->lock.lock();
-            if (threadContext->blockedBy)
-                ((jmonitor) ((jobject) threadContext->blockedBy)->monitor)->condition.notify_all();
+            if (threadContext->blockedBy) {
+                auto monitor = (jmonitor) ((jobject) threadContext->blockedBy)->monitor;
+                std::lock_guard<std::mutex> lock(monitor->conditionMutex); // See Object.wait
+                monitor->condition.notify_all();
+            }
             threadContext->lock.unlock();
         }
         if (done)
             break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // The other threads may need this core
     }
 }
 

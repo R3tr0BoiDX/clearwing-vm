@@ -83,8 +83,11 @@ void M_java_lang_Thread_interrupt(jcontext ctx, jobject self) {
     auto threadCtx = (jcontext) ((jthread) NULL_CHECK(self))->F_nativeContext;
     threadCtx->lock.lock();
     threadCtx->thread->F_interrupted = true;
-    if (threadCtx->blockedBy)
-        ((jmonitor) ((jobject) threadCtx->blockedBy)->monitor)->condition.notify_all();
+    if (threadCtx->blockedBy) {
+        auto monitor = (jmonitor) ((jobject) threadCtx->blockedBy)->monitor;
+        std::lock_guard<std::mutex> lock(monitor->conditionMutex); // See Object.wait
+        monitor->condition.notify_all();
+    }
     threadCtx->lock.unlock();
 }
 

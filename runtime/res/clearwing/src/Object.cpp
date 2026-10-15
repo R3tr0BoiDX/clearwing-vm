@@ -3,6 +3,7 @@
 #include "java/lang/Object.h"
 #include "java/lang/Cloneable.h"
 #include "java/lang/CloneNotSupportedException.h"
+#include "java/lang/Thread.h"
 
 #include <cstring>
 #include <string>
@@ -74,7 +75,8 @@ void M_java_lang_Object_wait(jcontext ctx, jobject self) {
         std::unique_lock<std::mutex> lock(monitor->conditionMutex);
         monitorExit(ctx, self);
         ctx->suspended = true;
-        monitor->condition.wait(lock);
+        if (!ctx->thread->F_interrupted) // Thread.interrupt notifies under the same mutex
+            monitor->condition.wait(lock);
     }
     ctx->suspended = false;
     SAFEPOINT();
@@ -102,7 +104,8 @@ void M_java_lang_Object_wait_long_int(jcontext ctx, jobject self, jlong millis, 
         std::unique_lock<std::mutex> lock(monitor->conditionMutex);
         monitorExit(ctx, self);
         ctx->suspended = true;
-        monitor->condition.wait_for(lock, std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos));
+        if (!ctx->thread->F_interrupted) // Thread.interrupt notifies under the same mutex
+            monitor->condition.wait_for(lock, std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos));
     }
     ctx->suspended = false;
     SAFEPOINT();
