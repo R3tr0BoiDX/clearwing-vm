@@ -337,8 +337,12 @@ bool isAssignableFrom(jcontext ctx, jclass type, jclass assignee) {
     if (type == assignee || type == &class_java_lang_Object)
         return true;
 
-    if (type->arrayDimensions > 0 and assignee->arrayDimensions > 0)
-        return isAssignableFrom(ctx, (jclass) type->componentClass, (jclass) assignee->componentClass);
+    if (type->arrayDimensions > 0 and assignee->arrayDimensions > 0) {
+        auto typeComponent = (jclass) type->componentClass, assigneeComponent = (jclass) assignee->componentClass;
+        if (typeComponent->primitive or assigneeComponent->primitive) // int[] is no Object[]
+            return typeComponent == assigneeComponent;
+        return isAssignableFrom(ctx, typeComponent, assigneeComponent);
+    }
 
     // A class that isn't an interface can only be a superclass, and walking up is cheaper than any lookup
     if (!(type->access & 0x200)) { // ACC_INTERFACE
