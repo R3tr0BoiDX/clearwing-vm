@@ -150,7 +150,7 @@ void shutdownVM(jcontext ctx) {
             done = false;
             threadContext->lock.lock();
             if (threadContext->blockedBy) {
-                auto monitor = (jmonitor) ((jobject) threadContext->blockedBy)->monitor;
+                auto monitor = getMonitor((jobject) threadContext->blockedBy);
                 std::lock_guard<std::mutex> lock(monitor->conditionMutex); // See Object.wait
                 monitor->condition.notify_all();
             }
@@ -188,7 +188,6 @@ bool registerClass(jclass clazz) {
             .clazz = (intptr_t) &class_java_lang_Class,
             .gcMark = GC_MARK_ETERNAL,
             .vtable = (intptr_t) vtable_java_lang_Class,
-            .monitor = (intptr_t) new ObjectMonitor,
     };
     auto instanceCache = new std::set<jclass>;
     std::function<void(jclass)> processClass;
@@ -404,14 +403,13 @@ jobject gcAllocObject(jcontext ctx, jclass clazz, int mark) {
         constructAndThrow<&class_java_lang_OutOfMemoryError, init_java_lang_OutOfMemoryError>(ctx);
 
     auto object = (jobject) new char[clazz->size]{};
-    heapUsage += clazz->size + (int64_t) sizeof(ObjectMonitor);
+    heapUsage += clazz->size;
     allocationsSinceCollection++;
 
     *object = {
         .clazz = (intptr_t) clazz,
         .gcMark = mark,
         .vtable = (intptr_t) clazz->classVtable,
-        .monitor = (intptr_t) new ObjectMonitor,
     };
 
     objectsLock.lock();
@@ -547,7 +545,7 @@ static void collectionThreadFunc(jcontext ctx) {
                     objects->erase(obj);
                     objectsLock.unlock();
 
-                    heapUsage -= ((jclass) obj->clazz)->size + (int64_t) sizeof(ObjectMonitor);
+                    heapUsage -= ((jclass) obj->clazz)->size;
 
                     delete (ObjectMonitor *) obj->monitor;
 
@@ -910,10 +908,23 @@ NORETURN void throwRuntimeException(jcontext ctx, const char *message) {
     constructAndThrow<&class_java_lang_RuntimeException, init_java_lang_RuntimeException>(ctx);
 }
 
+/// Returns the monitor of an object, created on first use since most objects are never locked. Does not throw exceptions.
+jmonitor getMonitor(jobject object) {
+    auto monitor = (jmonitor) __atomic_load_n(&object->monitor, __ATOMIC_ACQUIRE);
+    if (monitor)
+        return monitor;
+    auto created = new ObjectMonitor;
+    jref expected = 0;
+    if (__atomic_compare_exchange_n(&object->monitor, &expected, (jref) created, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+        return created;
+    delete created; // Another thread was first
+    return (jmonitor) expected;
+}
+
 /// Lock on a monitor. Throws exceptions.
 void monitorEnter(jcontext ctx, jobject object) {
     NULL_CHECK(object);
-    auto monitor = (jmonitor) object->monitor;
+    auto monitor = getMonitor(object);
 
     // Race condition here is fine, fall back to slower/blocking acquire
     if (monitor->lock.try_lock()) {
@@ -939,7 +950,7 @@ void monitorEnter(jcontext ctx, jobject object) {
 /// Unlock on a monitor. Throws exceptions.
 void monitorExit(jcontext ctx, jobject object) {
     NULL_CHECK(object);
-    auto monitor = (jmonitor) object->monitor;
+    auto monitor = getMonitor(object);
     monitorOwnerCheck(ctx, object);
     if (--monitor->depth == 0)
         monitor->owner = nullptr;
@@ -948,7 +959,7 @@ void monitorExit(jcontext ctx, jobject object) {
 
 /// Checks if the current thread owns a given monitor. Throws exceptions.
 void monitorOwnerCheck(jcontext ctx, jobject object) {
-    auto monitor = (jmonitor) object->monitor;
+    auto monitor = getMonitor(object);
     if (!monitor->owner or monitor->owner != ctx)
         constructAndThrow<&class_java_lang_IllegalMonitorStateException, init_java_lang_IllegalMonitorStateException>(ctx);
 }

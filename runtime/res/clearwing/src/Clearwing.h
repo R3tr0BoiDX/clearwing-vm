@@ -283,6 +283,7 @@ void popExceptionFrames(jframe frame, int count);
 jobject clearCurrentException(jframe frame);
 
 void monitorEnter(jcontext ctx, jobject object);
+jmonitor getMonitor(jobject object);
 void monitorExit(jcontext ctx, jobject object);
 void monitorOwnerCheck(jcontext ctx, jobject object);
 void interruptedCheck(jcontext ctx);

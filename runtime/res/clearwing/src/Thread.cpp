@@ -44,7 +44,7 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
 
     // Wake threads in join(), under the monitor so one that just saw this thread alive can't miss it
     ctx->suspended = true;
-    auto monitor = (jmonitor) ((jobject) thread)->monitor;
+    auto monitor = getMonitor((jobject) thread);
     monitor->lock.lock();
     thread->F_alive = false;
     {
@@ -67,7 +67,7 @@ void SM_java_lang_Thread_sleepImpl_long_int(jcontext ctx, jlong millis, jint nan
     // Waits on the thread's own condition without taking its monitor, so an interrupt can't leave it locked
     // (interrupt and VM shutdown notify the condition of blockedBy)
     auto thread = (jobject) ctx->thread;
-    auto monitor = (jmonitor) thread->monitor;
+    auto monitor = getMonitor(thread);
     while (std::chrono::system_clock::now() < end) {
         ctx->lock.lock();
         ctx->blockedBy = thread;
@@ -102,7 +102,7 @@ void M_java_lang_Thread_interrupt(jcontext ctx, jobject self) {
     threadCtx->lock.lock();
     threadCtx->thread->F_interrupted = true;
     if (threadCtx->blockedBy) {
-        auto monitor = (jmonitor) ((jobject) threadCtx->blockedBy)->monitor;
+        auto monitor = getMonitor((jobject) threadCtx->blockedBy);
         std::lock_guard<std::mutex> lock(monitor->conditionMutex); // See Object.wait
         monitor->condition.notify_all();
     }
@@ -146,7 +146,7 @@ jobject M_java_lang_Thread_getStackTrace_R_Array1_java_lang_StackTraceElement(jc
 // LockSupport: Thread.parkPermit is the permit, parking waits on the thread's own condition like sleep
 void SM_java_util_concurrent_locks_LockSupport_park0_boolean_long(jcontext ctx, jbool absolute, jlong time) {
     auto thread = ctx->thread;
-    auto monitor = (jmonitor) ((jobject) thread)->monitor;
+    auto monitor = getMonitor((jobject) thread);
     ctx->lock.lock();
     ctx->blockedBy = (jobject) thread;
     ctx->lock.unlock();
@@ -171,7 +171,7 @@ void SM_java_util_concurrent_locks_LockSupport_park0_boolean_long(jcontext ctx, 
 }
 
 void SM_java_util_concurrent_locks_LockSupport_unpark0_java_lang_Thread(jcontext ctx, jobject threadObj) {
-    auto monitor = (jmonitor) threadObj->monitor;
+    auto monitor = getMonitor(threadObj);
     std::lock_guard<std::mutex> lock(monitor->conditionMutex);
     ((jthread) threadObj)->F_parkPermit = true;
     monitor->condition.notify_all();
