@@ -1,6 +1,8 @@
 #include "java/io/FileInputStream.h"
 #include "java/io/FileNotFoundException.h"
 
+int64_t totalBytesRead; // For on-screen statistics, racy but close enough
+
 extern "C" {
 
 void M_java_io_FileInputStream_open_java_lang_String(jcontext ctx, jobject self, jobject nameObj) {
@@ -34,6 +36,7 @@ jint M_java_io_FileInputStream_readBytes_Array1_byte_int_int_R_int(jcontext ctx,
         auto read = fread((char *) array->data + off, 1, len, f);
         if (!read)
             return -1;
+        totalBytesRead += read;
         return (jint) read;
     } else
         throwIOException(ctx, "File closed");

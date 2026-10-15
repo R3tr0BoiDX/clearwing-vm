@@ -64,7 +64,10 @@ static volatile bool exiting;
 static thread_local jcontext threadContext;
 
 std::atomic_int64_t heapUsage;
-int64_t totalAllocations; // For the profiler, racy but close enough
+// Running totals for the profiler and on-screen statistics, racy but close enough
+int64_t totalAllocations;
+int64_t totalCollections;
+int64_t totalCollectionNanos;
 std::atomic_int64_t allocationsSinceCollection;
 int64_t lastCollectionHeapUsage;
 
@@ -766,7 +769,10 @@ void runGC(jcontext ctx) {
 
     lastCollectionHeapUsage = heapUsage;
 
-    profileGC(std::chrono::duration<double>(std::chrono::system_clock::now() - blockTime).count(), (int64_t) heapUsage);
+    auto collectionTime = std::chrono::system_clock::now() - blockTime;
+    totalCollections++;
+    totalCollectionNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(collectionTime).count();
+    profileGC(std::chrono::duration<double>(collectionTime).count(), (int64_t) heapUsage);
 
     running = false;
 
