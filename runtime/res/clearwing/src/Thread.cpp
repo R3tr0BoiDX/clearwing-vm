@@ -143,4 +143,38 @@ jobject M_java_lang_Thread_getStackTrace_R_Array1_java_lang_StackTraceElement(jc
     return frame[0].o;
 }
 
+// LockSupport: Thread.parkPermit is the permit, parking waits on the thread's own condition like sleep
+void SM_java_util_concurrent_locks_LockSupport_park0_boolean_long(jcontext ctx, jbool absolute, jlong time) {
+    auto thread = ctx->thread;
+    auto monitor = (jmonitor) ((jobject) thread)->monitor;
+    ctx->lock.lock();
+    ctx->blockedBy = (jobject) thread;
+    ctx->lock.unlock();
+    ctx->suspended = true;
+    {
+        std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+        if (!thread->F_parkPermit && !thread->F_interrupted) { // Thread.interrupt notifies under the same mutex
+            if (absolute)
+                monitor->condition.wait_until(lock, std::chrono::system_clock::time_point(std::chrono::milliseconds(time)));
+            else if (time > 0)
+                monitor->condition.wait_for(lock, std::chrono::nanoseconds(time));
+            else
+                monitor->condition.wait(lock);
+        }
+        thread->F_parkPermit = false;
+    }
+    ctx->suspended = false;
+    ctx->lock.lock();
+    ctx->blockedBy = nullptr;
+    ctx->lock.unlock();
+    SAFEPOINT();
+}
+
+void SM_java_util_concurrent_locks_LockSupport_unpark0_java_lang_Thread(jcontext ctx, jobject threadObj) {
+    auto monitor = (jmonitor) threadObj->monitor;
+    std::lock_guard<std::mutex> lock(monitor->conditionMutex);
+    ((jthread) threadObj)->F_parkPermit = true;
+    monitor->condition.notify_all();
+}
+
 }

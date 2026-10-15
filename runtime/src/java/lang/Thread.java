@@ -58,6 +58,7 @@ public class Thread implements java.lang.Runnable{
     private long entrypoint;
     private static volatile int activeThreads;
     private volatile boolean interrupted;
+    private volatile boolean parkPermit; // LockSupport
     private long id;
     private volatile boolean started;
     private long nativeContext;

@@ -136,8 +136,8 @@ public class LockSupport {
      *        this operation has no effect
      */
     public static void unpark(Thread thread) {
-//        if (thread != null)
-//            UNSAFE.unpark(thread);
+        if (thread != null)
+            unpark0(thread);
     }
 
     /**
@@ -171,7 +171,7 @@ public class LockSupport {
     public static void park(Object blocker) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
-//        UNSAFE.park(false, 0L);
+        park0(false, 0L);
         setBlocker(t, null);
     }
 
@@ -211,7 +211,7 @@ public class LockSupport {
         if (nanos > 0) {
             Thread t = Thread.currentThread();
             setBlocker(t, blocker);
-//            UNSAFE.park(false, nanos);
+            park0(false, nanos);
             setBlocker(t, null);
         }
     }
@@ -252,7 +252,7 @@ public class LockSupport {
     public static void parkUntil(Object blocker, long deadline) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
-//        UNSAFE.park(true, deadline);
+        park0(true, deadline);
         setBlocker(t, null);
     }
 
@@ -301,7 +301,7 @@ public class LockSupport {
      * for example, the interrupt status of the thread upon return.
      */
     public static void park() {
-//        UNSAFE.park(false, 0L);
+        park0(false, 0L);
     }
 
     /**
@@ -334,8 +334,8 @@ public class LockSupport {
      * @param nanos the maximum number of nanoseconds to wait
      */
     public static void parkNanos(long nanos) {
-//        if (nanos > 0)
-//            UNSAFE.park(false, nanos);
+        if (nanos > 0)
+            park0(false, nanos);
     }
 
     /**
@@ -369,8 +369,13 @@ public class LockSupport {
      *        to wait until
      */
     public static void parkUntil(long deadline) {
-//        UNSAFE.park(true, deadline);
+        park0(true, deadline);
     }
+
+    /** Unsafe.park: absolute is a deadline in epoch milliseconds, otherwise nanoseconds from now (0 = no timeout) */
+    private static native void park0(boolean absolute, long time);
+
+    private static native void unpark0(Thread thread);
 
     static final long getThreadId(Thread thread) {
         return 0;
