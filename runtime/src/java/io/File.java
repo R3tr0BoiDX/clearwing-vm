@@ -230,13 +230,13 @@ public class File {
 	public native boolean mkdir ();
 
 	public boolean mkdirs () {
-		File dir = this;
-		while (dir != null && !dir.path.isEmpty()) {
-			if (!dir.exists() && !dir.mkdir())
-				return false;
-			dir = dir.getParentFile();
-		}
-		return true;
+		// Like the JDK: parents first, false if the directory already exists
+		if (exists())
+			return false;
+		if (mkdir())
+			return true;
+		File parent = getParentFile();
+		return parent != null && !parent.path.isEmpty() && (parent.mkdirs() || parent.exists()) && mkdir();
 	}
 
 	public boolean renameTo (File f) {
