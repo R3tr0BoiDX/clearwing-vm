@@ -101,9 +101,10 @@ jobject M_java_lang_Thread_getStackTrace_R_Array1_java_lang_StackTraceElement(jc
     FrameInfo frameInfo { "java/lang/Thread:getStackTrace", 1 };
     auto frameRef = pushStackFrame(ctx, &frameInfo, frame);
 
-    // Another thread's stack is read without stopping it, like the JDK this is only a snapshot
+    // Another thread's frames can't be read safely while it runs (frame infos may be stack allocated and
+    // already gone), so like a VM that omits frames, other threads get an empty trace
     auto target = (jcontext) ((jthread) NULL_CHECK(self))->F_nativeContext;
-    int depth = target ? target->stackDepth : 0;
+    int depth = target == ctx ? target->stackDepth : 0;
     jarray trace = createArray(ctx, &class_java_lang_StackTraceElement, depth);
     frame[0].o = (jobject)trace;
 
