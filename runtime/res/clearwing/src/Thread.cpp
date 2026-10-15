@@ -42,8 +42,16 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
         popStackFrame(ctx);
     } catch (ExitException &) { }
 
-    thread->F_alive = false;
+    // Wake threads in join(), under the monitor so one that just saw this thread alive can't miss it
     ctx->suspended = true;
+    auto monitor = (jmonitor) ((jobject) thread)->monitor;
+    monitor->lock.lock();
+    thread->F_alive = false;
+    {
+        std::lock_guard<std::mutex> lock(monitor->conditionMutex);
+        monitor->condition.notify_all();
+    }
+    monitor->lock.unlock();
     ctx->dead = true;
 
     unprotectObject((jobject)thread);
