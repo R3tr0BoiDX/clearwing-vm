@@ -64,15 +64,25 @@ jobject SM_java_lang_Thread_currentThread_R_java_lang_Thread(jcontext ctx) {
 void SM_java_lang_Thread_sleepImpl_long_int(jcontext ctx, jlong millis, jint nanos) {
     auto end = std::chrono::system_clock::now() + std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos);
     interruptedCheck(ctx);
+    // Waits on the thread's own condition without taking its monitor, so an interrupt can't leave it locked
+    // (interrupt and VM shutdown notify the condition of blockedBy)
     auto thread = (jobject) ctx->thread;
+    auto monitor = (jmonitor) thread->monitor;
     while (std::chrono::system_clock::now() < end) {
-        auto remaining = end - std::chrono::system_clock::now();
-        auto remainingNanos = duration_cast<std::chrono::nanoseconds>(remaining);
-        auto remainingMillis = std::chrono::round<std::chrono::milliseconds>(remaining);
-        remainingNanos -= remainingMillis;
-        monitorEnter(ctx, thread);
-        M_java_lang_Object_wait_long_int(ctx, thread, remainingMillis.count(), (int) remainingNanos.count());
-        monitorExit(ctx, thread);
+        ctx->lock.lock();
+        ctx->blockedBy = thread;
+        ctx->lock.unlock();
+        ctx->suspended = true;
+        {
+            std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+            if (!ctx->thread->F_interrupted)
+                monitor->condition.wait_until(lock, end);
+        }
+        ctx->suspended = false;
+        ctx->lock.lock();
+        ctx->blockedBy = nullptr;
+        ctx->lock.unlock();
+        SAFEPOINT();
         interruptedCheck(ctx);
     }
 }
