@@ -50,12 +50,16 @@ void M_java_lang_Object_finalize(jcontext ctx, jobject self) {
 
 void M_java_lang_Object_notify(jcontext ctx, jobject self) {
     monitorOwnerCheck(ctx, self);
-    ((jmonitor) self->monitor)->condition.notify_one();
+    auto monitor = (jmonitor) self->monitor;
+    std::lock_guard<std::mutex> lock(monitor->conditionMutex); // Waiters hold it until they wait, so none is missed
+    monitor->condition.notify_one();
 }
 
 void M_java_lang_Object_notifyAll(jcontext ctx, jobject self) {
     monitorOwnerCheck(ctx, self);
-    ((jmonitor) self->monitor)->condition.notify_all();
+    auto monitor = (jmonitor) self->monitor;
+    std::lock_guard<std::mutex> lock(monitor->conditionMutex); // Waiters hold it until they wait, so none is missed
+    monitor->condition.notify_all();
 }
 
 void M_java_lang_Object_wait(jcontext ctx, jobject self) {
@@ -64,12 +68,12 @@ void M_java_lang_Object_wait(jcontext ctx, jobject self) {
     ctx->lock.lock();
     ctx->blockedBy = self;
     ctx->lock.unlock();
-    monitorExit(ctx, self);
-
-    ctx->suspended = true;
     auto monitor = (jmonitor) self->monitor;
     {
+        // Taken before the monitor is released, so a notify can't slip in before this thread waits
         std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+        monitorExit(ctx, self);
+        ctx->suspended = true;
         monitor->condition.wait(lock);
     }
     ctx->suspended = false;
@@ -92,12 +96,12 @@ void M_java_lang_Object_wait_long_int(jcontext ctx, jobject self, jlong millis, 
     ctx->lock.lock();
     ctx->blockedBy = self;
     ctx->lock.unlock();
-    monitorExit(ctx, self);
-
-    ctx->suspended = true;
     auto monitor = (jmonitor) self->monitor;
     {
+        // Taken before the monitor is released, so a notify can't slip in before this thread waits
         std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+        monitorExit(ctx, self);
+        ctx->suspended = true;
         monitor->condition.wait_for(lock, std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos));
     }
     ctx->suspended = false;
