@@ -596,6 +596,9 @@ void runGC(jcontext ctx) {
         releaseCriticalLock();
         if (!blocked)
             break;
+        // Let the other threads reach their safepoints. A yield is not enough where they may have a lower
+        // priority on the same core (e.g. on the Switch, where new threads get the lowest priority)
+        std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
 
     auto copyTime = std::chrono::system_clock::now();
@@ -800,6 +803,7 @@ void safepointSuspend(jcontext ctx) {
     while (suspendVM) {
         if (exiting)
             throw ExitException();
+        std::this_thread::sleep_for(std::chrono::microseconds(50)); // The GC thread may need this core
     }
     ctx->suspended = false;
 }
