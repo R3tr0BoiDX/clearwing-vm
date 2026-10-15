@@ -59,6 +59,9 @@ public class File {
 	}
 	
 	private String normalizePath(String path) {
+		// Like the JDK on Unix: no repeated separators
+		while (path.contains("//"))
+			path = path.replace("//", "/");
 		return path.length() < 2 || !path.endsWith(separator) ? path : path.substring(0, path.length() - 1);
 	}
 
