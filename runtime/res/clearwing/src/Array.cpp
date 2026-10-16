@@ -74,11 +74,24 @@ jclass getArrayClass(jclass componentType, int dimensions) {
         dimensions++;
     }
 
+    // A small per-thread cache in front of the lock and map, every array allocation comes here
+    struct CacheEntry {
+        jclass componentType;
+        int dimensions;
+        jclass arrayClass;
+    };
+    static thread_local CacheEntry cache[32];
+    auto &cached = cache[(((uintptr_t) componentType >> 4) + dimensions) & 31];
+    if (cached.componentType == componentType && cached.dimensions == dimensions)
+        return cached.arrayClass;
+
     std::lock_guard guard(mutex);
 
     auto it = arrayClasses.find(componentType);
-    if (it != arrayClasses.end() && (int)it->second.size() >= dimensions)
-        return it->second[dimensions - 1];
+    if (it != arrayClasses.end() && (int)it->second.size() >= dimensions) {
+        cached = {componentType, dimensions, it->second[dimensions - 1]};
+        return cached.arrayClass;
+    }
 
     auto &vector = arrayClasses[componentType];
     while ((int)vector.size() < dimensions) {
@@ -107,7 +120,8 @@ jclass getArrayClass(jclass componentType, int dimensions) {
         registerClass(vector.back());
     }
 
-    return vector[dimensions - 1];
+    cached = {componentType, dimensions, vector[dimensions - 1]};
+    return cached.arrayClass;
 }
 
 /// Creates a new multi-dimensional array. Throws exceptions.
@@ -135,7 +149,16 @@ extern "C++" jarray createMultiArray(jcontext ctx, jclass type, const std::vecto
 
 /// Creates a new array. Throws exceptions.
 jarray createArray(jcontext ctx, jclass type, int length) {
-    return createMultiArray(ctx, type, {length});
+    // Without createMultiArray's vector and protecting: nothing here reaches a safepoint after the allocation
+    nullCheck(ctx, (jobject) type);
+    auto array = (jarray) gcAlloc(ctx, getArrayClass(type, 1));
+    array->length = length;
+    if (length == 0)
+        return array;
+    int64_t bytes = type->primitive ? (int64_t) type->size * length : (int64_t) sizeof(jobject) * length;
+    array->data = new char[bytes]{};
+    adjustHeapUsage(bytes);
+    return array;
 }
 
 jarray createArrayProtected(jcontext ctx, jclass type, int length) {
