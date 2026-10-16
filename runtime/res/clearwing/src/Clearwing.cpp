@@ -254,14 +254,25 @@ jint longCompare(jlong value1, jlong value2) {
 }
 
 static jstring createString(jcontext ctx, const char *string, int length, bool protect) {
-    auto encoded = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{}.from_bytes(string, string + length);
-    int encodedLength = (int)encoded.length();
+    // Most native strings are ASCII and are widened directly: constructing the UTF-8 converter is slow
+    bool ascii = true;
+    for (int i = 0; i < length && ascii; i++)
+        ascii = (unsigned char) string[i] < 0x80;
+    std::u16string encoded;
+    if (!ascii)
+        encoded = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{}.from_bytes(string, string + length);
+    int encodedLength = ascii ? length : (int)encoded.length();
     auto inst = (jstring) gcAllocProtected(ctx, &class_java_lang_String); // This leaks if createArray throws an exception
     inst->F_value = (intptr_t) createArray(ctx, &class_char, encodedLength);
     if (!protect)
         unprotectObject((jobject)inst);
     inst->F_count = encodedLength;
-    memcpy(((jarray) inst->F_value)->data, encoded.c_str(), encoded.length() * 2);
+    auto chars = (jchar *) ((jarray) inst->F_value)->data;
+    if (ascii)
+        for (int i = 0; i < length; i++)
+            chars[i] = (jchar) string[i];
+    else
+        memcpy(chars, encoded.c_str(), encoded.length() * 2);
     return inst;
 }
 
