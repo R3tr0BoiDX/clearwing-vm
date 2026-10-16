@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "java/lang/Object.h"
 #include "java/lang/String.h"
 #include "java/lang/Class.h"
 #include "java/lang/Thread.h"
@@ -78,6 +79,7 @@ extern "C" {
 bool volatile suspendVM;
 
 static void collectionThreadFunc(jcontext ctx);
+extern "C" void array_finalize(jcontext ctx, jobject self);
 
 static void markPrimitive(jobject object, jint mark, jint depth) {}
 
@@ -572,26 +574,44 @@ static void collectionThreadFunc(jcontext ctx) {
             objectsLock.unlock();
 
             if (!collected.empty()) {
+                // Most classes don't override finalize, and those of strings and arrays (most of the garbage) can't
+                // throw, so only the rest needs the slow tryCatch
                 for (jobject obj : collected) {
+                    auto finalizer = (finalizer_ptr) ((void **) obj->vtable)[VTABLE_java_lang_Object_finalize];
+                    if (finalizer == M_java_lang_Object_finalize)
+                        continue;
+                    if (finalizer == M_java_lang_String_finalize || finalizer == array_finalize) {
+                        finalizer(ctx, obj);
+                        continue;
+                    }
                     tryCatch(frameRef, [&]{
-                        ((finalizer_ptr)((void **)obj->vtable)[VTABLE_java_lang_Object_finalize])(ctx, obj);
+                        finalizer(ctx, obj);
                     }, &class_java_lang_Throwable, [](jobject ignored){});
                 }
 
-                for (jobject obj : collected) {
+                // Freed in batches: allocating threads take objectsLock for every object, and locking it once per
+                // object here made them wait (on the Switch, for seconds after a large collection)
+                int64_t freed = 0;
+                for (size_t start = 0; start < collected.size(); start += 1024) {
+                    size_t end = std::min(collected.size(), start + 1024);
                     objectsLock.lock();
-                    objects->erase(obj);
+                    for (size_t i = start; i < end; i++)
+                        objects->erase(collected[i]);
                     objectsLock.unlock();
 
-                    heapUsage -= ((jclass) obj->clazz)->size;
+                    for (size_t i = start; i < end; i++) {
+                        jobject obj = collected[i];
+                        freed += ((jclass) obj->clazz)->size;
 
-                    delete (ObjectMonitor *) obj->monitor;
+                        delete (ObjectMonitor *) obj->monitor;
 
-                    memset(obj, 0, sizeof(java_lang_Object)); // Erase collected objects to make memory bugs easier to catch
-                    obj->gcMark = GC_MARK_COLLECTED; // Set collected flag again
+                        memset(obj, 0, sizeof(java_lang_Object)); // Erase collected objects to make memory bugs easier to catch
+                        obj->gcMark = GC_MARK_COLLECTED; // Set collected flag again
 
-                    delete[] (char *) obj;
+                        delete[] (char *) obj;
+                    }
                 }
+                heapUsage -= freed;
 
                 collected.clear();
             }
