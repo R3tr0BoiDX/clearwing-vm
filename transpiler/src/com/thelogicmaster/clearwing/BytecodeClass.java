@@ -438,9 +438,11 @@ public class BytecodeClass {
 
 			int stackSize = method.getStackSize() + method.getLocalCount();
 			if (stackSize > 0) {
-				builder.append("\tvolatile jtype frame[").append(stackSize).append("];\n");
+				// Only exception handlers (setjmp) need the frame volatile, elsewhere it keeps values out of registers
+				String qualifier = method.getTryCatchBlocks().isEmpty() ? "" : "volatile ";
+				builder.append("\t").append(qualifier).append("jtype frame[").append(stackSize).append("];\n");
 				builder.append("\tauto stack = &frame[").append(method.getLocalCount()).append("];\n");
-				builder.append("\tvolatile jtype *sp = stack;\n");
+				builder.append("\t").append(qualifier).append("jtype *sp = stack;\n");
 			}
 			builder.append("\tFrameInfo frameInfo { ").append("\"").append(name).append(":")
 					.append(method.getOriginalName()).append("\", ").append(stackSize).append(" };\n");

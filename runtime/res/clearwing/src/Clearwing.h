@@ -322,6 +322,11 @@ jdouble unboxDouble(jcontext ctx, jobject boxed);
 jbool unboxBoolean(jcontext ctx, jobject boxed);
 
 void instMultiANewArray(jcontext ctx, volatile jtype * &sp, jclass type, int dimensions);
+extern "C++" inline void instMultiANewArray(jcontext ctx, jtype * &sp, jclass type, int dimensions) {
+    volatile jtype *volatileSp = sp;
+    instMultiANewArray(ctx, volatileSp, type, dimensions);
+    sp = (jtype *) volatileSp;
+}
 jint floatCompare(jfloat value1, jfloat value2, jint nanValue);
 jint doubleCompare(jdouble value1, jdouble value2, jint nanValue);
 jint longCompare(jlong value1, jlong value2);
