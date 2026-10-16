@@ -193,9 +193,10 @@ public class Thread implements java.lang.Runnable{
         }
         long delay = millis;
         long start = System.currentTimeMillis();
-        do {
+        while (alive && delay > 0) {
             wait(delay);
-        } while (alive && (delay = millis - (System.currentTimeMillis() - start)) > 0);
+            delay = millis - (System.currentTimeMillis() - start);
+        }
     }
 
     public final void join(long millis, int nanos) throws java.lang.InterruptedException {
