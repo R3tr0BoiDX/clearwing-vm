@@ -42,8 +42,9 @@ void array_finalize(jcontext ctx, jobject self) {
     auto array = (jarray)self;
     if (array->data) {
         auto clazz = (jclass)((jclass) array->parent.clazz)->componentClass;
-        adjustHeapUsage(clazz->primitive ? -array->length * clazz->size : -(int64_t)sizeof(jobject) * array->length);
-        delete[] (char *) array->data;
+        int64_t bytes = clazz->primitive ? (int64_t) array->length * clazz->size : (int64_t) sizeof(jobject) * array->length;
+        adjustHeapUsage(-bytes);
+        gcFree(array->data, bytes);
         array->length = 0;
         array->data = nullptr;
     }
@@ -132,10 +133,10 @@ extern "C++" jarray createMultiArray(jcontext ctx, jclass type, const std::vecto
     if (array->length == 0) // Todo: Verify
         return array;
     if (type->primitive and dimensions.size() == 1) {
-        array->data = new char[type->size * array->length]{};
+        array->data = gcMalloc(type->size * array->length);
         adjustHeapUsage(type->size * array->length);
     } else {
-        array->data = new char[sizeof(jobject) * array->length]{};
+        array->data = gcMalloc(sizeof(jobject) * array->length);
         adjustHeapUsage((int64_t) sizeof(jobject) * array->length);
         if (dimensions.size() > 1) {
             auto itemDims = std::vector<int>(dimensions.begin() + 1, dimensions.end());
@@ -156,7 +157,7 @@ jarray createArray(jcontext ctx, jclass type, int length) {
     if (length == 0)
         return array;
     int64_t bytes = type->primitive ? (int64_t) type->size * length : (int64_t) sizeof(jobject) * length;
-    array->data = new char[bytes]{};
+    array->data = gcMalloc(bytes);
     adjustHeapUsage(bytes);
     return array;
 }

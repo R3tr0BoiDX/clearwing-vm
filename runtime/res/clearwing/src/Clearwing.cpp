@@ -436,6 +436,75 @@ void *resolveInterfaceMethod(jcontext ctx, jclass interface, int method, jobject
     return ((void **) object->vtable)[offset];
 }
 
+// Objects and array data up to POOL_MAX_SIZE bytes come from free lists per size. The Switch's malloc (newlib's old
+// dlmalloc) slowed down to 5-25 us per allocation once the heap was full of small freed chunks, while the GC thread
+// held its lock freeing them.
+// ponytail: freed blocks are only reused for the same size and never returned to malloc; fine for a game's heap
+static constexpr size_t POOL_GRANULE = 16, POOL_MAX_SIZE = 2048, POOL_SLAB_SIZE = 256 * 1024;
+static void *poolFreeLists[POOL_MAX_SIZE / POOL_GRANULE + 1];
+static char *poolSlab, *poolSlabEnd;
+static std::mutex poolLock;
+
+/// Allocates zeroed memory for an object or array data, to be released with gcFree and the same size. Does not throw.
+void *gcMalloc(size_t size) {
+    if (size > POOL_MAX_SIZE)
+        return new char[size]{};
+    size_t index = std::max<size_t>(1, (size + POOL_GRANULE - 1) / POOL_GRANULE);
+    size_t blockSize = index * POOL_GRANULE;
+    void *block;
+    {
+        std::lock_guard guard(poolLock);
+        block = poolFreeLists[index];
+        if (block)
+            poolFreeLists[index] = *(void **) block;
+        else {
+            if ((size_t) (poolSlabEnd - poolSlab) < blockSize) { // The rest of the old slab is lost
+                poolSlab = (char *) malloc(POOL_SLAB_SIZE);
+                poolSlabEnd = poolSlab + POOL_SLAB_SIZE;
+            }
+            block = poolSlab;
+            poolSlab += blockSize;
+        }
+    }
+    memset(block, 0, blockSize);
+    return block;
+}
+
+// Freed blocks are chained per thread first and handed back in one locked step, so the GC thread freeing thousands
+// of blocks doesn't compete with allocating threads for poolLock
+struct PendingFrees { void *head, *tail; };
+static thread_local PendingFrees pendingFrees[POOL_MAX_SIZE / POOL_GRANULE + 1];
+static thread_local int pendingFreeCount;
+
+/// Makes the blocks this thread freed available for allocation. Does not throw.
+void gcFlushFrees() {
+    if (!pendingFreeCount)
+        return;
+    std::lock_guard guard(poolLock);
+    for (auto &pending : pendingFrees)
+        if (pending.head) {
+            *(void **) pending.tail = poolFreeLists[&pending - pendingFrees];
+            poolFreeLists[&pending - pendingFrees] = pending.head;
+            pending = {};
+        }
+    pendingFreeCount = 0;
+}
+
+/// Releases memory from gcMalloc. Does not throw.
+void gcFree(void *block, size_t size) {
+    if (size > POOL_MAX_SIZE) {
+        delete[] (char *) block;
+        return;
+    }
+    auto &pending = pendingFrees[std::max<size_t>(1, (size + POOL_GRANULE - 1) / POOL_GRANULE)];
+    *(void **) block = pending.head;
+    if (!pending.head)
+        pending.tail = block;
+    pending.head = block;
+    if (++pendingFreeCount >= 1024)
+        gcFlushFrees();
+}
+
 jobject gcAllocObject(jcontext ctx, jclass clazz, int mark) {
     if (!objects) {
         objects = new ankerl::unordered_dense::set<jobject>;
@@ -448,7 +517,7 @@ jobject gcAllocObject(jcontext ctx, jclass clazz, int mark) {
     if (heapUsage > GC_HEAP_THRESHOLD)
         constructAndThrow<&class_java_lang_OutOfMemoryError, init_java_lang_OutOfMemoryError>(ctx);
 
-    auto object = (jobject) new char[clazz->size]{};
+    auto object = (jobject) gcMalloc(clazz->size);
     heapUsage += clazz->size;
     allocationsSinceCollection++;
     totalAllocations++;
@@ -608,16 +677,18 @@ static void collectionThreadFunc(jcontext ctx) {
 
                     for (size_t i = start; i < end; i++) {
                         jobject obj = collected[i];
-                        freed += ((jclass) obj->clazz)->size;
+                        size_t size = ((jclass) obj->clazz)->size;
+                        freed += size;
 
                         delete (ObjectMonitor *) obj->monitor;
 
                         memset(obj, 0, sizeof(java_lang_Object)); // Erase collected objects to make memory bugs easier to catch
                         obj->gcMark = GC_MARK_COLLECTED; // Set collected flag again
 
-                        delete[] (char *) obj;
+                        gcFree(obj, size);
                     }
                 }
+                gcFlushFrees();
                 heapUsage -= freed;
 
                 collected.clear();

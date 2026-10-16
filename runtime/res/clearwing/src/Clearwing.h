@@ -4,6 +4,7 @@
 #include "Config.h"
 
 #ifdef __cplusplus
+#include <cstddef>
 #include <cstdint>
 #include <csetjmp>
 #define NORETURN [[noreturn]]
@@ -242,6 +243,8 @@ void *resolveInterfaceMethod(jcontext ctx, jclass interface, int method, jobject
 jobject gcAlloc(jcontext ctx, jclass clazz);
 jobject gcAllocProtected(jcontext ctx, jclass clazz);
 jobject gcAllocEternal(jcontext ctx, jclass clazz);
+void *gcMalloc(size_t size);
+void gcFree(void *block, size_t size);
 jobject makeEternal(jobject object);
 jobject makeEphemeral(jobject object);
 jobject protectObject(jobject object);
