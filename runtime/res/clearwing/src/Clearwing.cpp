@@ -168,6 +168,13 @@ void shutdownVM(jcontext ctx) {
             break;
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // The other threads may need this core
     }
+
+    // Join the stopped threads. On the Switch a thread's stack is heap memory that stays locked until the thread
+    // is joined, and the process (hbloader) outlives the program, so the next program started in it would crash
+    // allocating from those pages
+    for (auto threadContext : threadContexts)
+        if (threadContext != ctx && threadContext->dead && threadContext->nativeThread && threadContext->nativeThread->joinable())
+            threadContext->nativeThread->join();
 }
 
 void attachThread(jcontext ctx) {
