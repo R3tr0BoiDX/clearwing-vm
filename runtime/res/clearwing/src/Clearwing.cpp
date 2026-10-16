@@ -298,6 +298,14 @@ jstring stringFromNativeEternal(jcontext ctx, const char *string) {
 
 /// Creates a string from a StringLiteral. Throws exceptions.
 jstring createStringLiteral(jcontext ctx, StringLiteral literal) {
+    // Generated code calls this every time a literal is evaluated, so each thread remembers recent literals by
+    // address in front of the locked pool. Pooled strings are eternal, so cached pointers stay valid
+    struct CachedLiteral { const char *string; jstring value; };
+    static thread_local CachedLiteral cache[1024];
+    auto &cached = cache[((uintptr_t) literal.string * 0x9E3779B97F4A7C15ull) >> 54];
+    if (cached.string == literal.string)
+        return cached.value;
+
     static std::map<const char *, jstring> pool;
     static std::mutex lock;
     jstring value{};
@@ -312,6 +320,7 @@ jstring createStringLiteral(jcontext ctx, StringLiteral literal) {
         makeEternal((jobject)value->F_value);
         pool[literal.string] = value;
     });
+    cached = { literal.string, value };
     return value;
 }
 
