@@ -179,68 +179,110 @@ public final class Field {
 
     public native void set(Object obj, Object value) throws IllegalArgumentException, IllegalAccessException;
 
+    // Without boxing, for fields of exactly that type (Kryo copies most fields through these)
+    private native byte getByteDirect(Object obj);
+    private native short getShortDirect(Object obj);
+    private native char getCharDirect(Object obj);
+    private native int getIntDirect(Object obj);
+    private native long getLongDirect(Object obj);
+    private native float getFloatDirect(Object obj);
+    private native double getDoubleDirect(Object obj);
+    private native boolean getBooleanDirect(Object obj);
+    private native void setByteDirect(Object obj, byte value);
+    private native void setShortDirect(Object obj, short value);
+    private native void setCharDirect(Object obj, char value);
+    private native void setIntDirect(Object obj, int value);
+    private native void setLongDirect(Object obj, long value);
+    private native void setFloatDirect(Object obj, float value);
+    private native void setDoubleDirect(Object obj, double value);
+    private native void setBooleanDirect(Object obj, boolean value);
+
     public byte getByte(Object obj) throws IllegalAccessException {
-        return (byte)get(obj);
+        return type == byte.class ? getByteDirect(obj) : (byte)get(obj);
     }
 
     public short getShort(Object obj) throws IllegalAccessException {
-        return (short)get(obj);
+        return type == short.class ? getShortDirect(obj) : (short)get(obj);
     }
 
     public char getChar(Object obj) throws IllegalAccessException {
-        return (char)get(obj);
+        return type == char.class ? getCharDirect(obj) : (char)get(obj);
     }
 
     public int getInt(Object obj) throws IllegalAccessException {
-        return (int)get(obj);
+        return type == int.class ? getIntDirect(obj) : (int)get(obj);
     }
 
     public long getLong(Object obj) throws IllegalAccessException {
-        return (long)get(obj);
+        return type == long.class ? getLongDirect(obj) : (long)get(obj);
     }
 
     public float getFloat(Object obj) throws IllegalAccessException {
-        return (float)get(obj);
+        return type == float.class ? getFloatDirect(obj) : (float)get(obj);
     }
 
     public double getDouble(Object obj) throws IllegalAccessException {
-        return (double)get(obj);
+        return type == double.class ? getDoubleDirect(obj) : (double)get(obj);
     }
 
     public boolean getBoolean(Object obj) throws IllegalAccessException {
-        return (boolean)get(obj);
+        return type == boolean.class ? getBooleanDirect(obj) : (boolean)get(obj);
     }
 
     public void setByte(Object obj, byte value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == byte.class)
+            setByteDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setShort(Object obj, short value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == short.class)
+            setShortDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setChar(Object obj, char value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == char.class)
+            setCharDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setInt(Object obj, int value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == int.class)
+            setIntDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setLong(Object obj, long value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == long.class)
+            setLongDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setFloat(Object obj, float value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == float.class)
+            setFloatDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setDouble(Object obj, double value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == double.class)
+            setDoubleDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public void setBoolean(Object obj, boolean value) throws IllegalAccessException {
-        set(obj, value);
+        if (type == boolean.class)
+            setBooleanDirect(obj, value);
+        else
+            set(obj, value);
     }
 
     public Annotation[] getDeclaredAnnotations() {

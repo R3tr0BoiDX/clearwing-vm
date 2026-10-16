@@ -113,6 +113,80 @@ void M_java_lang_reflect_Field_set_java_lang_Object_java_lang_Object(jcontext ct
     else if (fieldClass == &class_boolean) *(jbool *) ptr = unboxBoolean(ctx, value);
 }
 
+/// The address of a field's value, after the static initializer or null check. Throws exceptions.
+static char *fieldAddress(jcontext ctx, jobject self, jobject object) {
+    auto field = (java_lang_reflect_Field *) NULL_CHECK(self);
+    if (field->F_modifiers & 0x8) {
+        ((static_init_ptr)((jclass)field->F_declaringClass)->staticInitializer)(ctx);
+        return (char *) field->F_offset;
+    }
+    return ((char *) NULL_CHECK(object)) + field->F_offset;
+}
+
+jbyte M_java_lang_reflect_Field_getByteDirect_java_lang_Object_R_byte(jcontext ctx, jobject self, jobject object) {
+    return *(jbyte *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setByteDirect_java_lang_Object_byte(jcontext ctx, jobject self, jobject object, jbyte value) {
+    *(jbyte *) fieldAddress(ctx, self, object) = value;
+}
+
+jshort M_java_lang_reflect_Field_getShortDirect_java_lang_Object_R_short(jcontext ctx, jobject self, jobject object) {
+    return *(jshort *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setShortDirect_java_lang_Object_short(jcontext ctx, jobject self, jobject object, jshort value) {
+    *(jshort *) fieldAddress(ctx, self, object) = value;
+}
+
+jchar M_java_lang_reflect_Field_getCharDirect_java_lang_Object_R_char(jcontext ctx, jobject self, jobject object) {
+    return *(jchar *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setCharDirect_java_lang_Object_char(jcontext ctx, jobject self, jobject object, jchar value) {
+    *(jchar *) fieldAddress(ctx, self, object) = value;
+}
+
+jint M_java_lang_reflect_Field_getIntDirect_java_lang_Object_R_int(jcontext ctx, jobject self, jobject object) {
+    return *(jint *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setIntDirect_java_lang_Object_int(jcontext ctx, jobject self, jobject object, jint value) {
+    *(jint *) fieldAddress(ctx, self, object) = value;
+}
+
+jlong M_java_lang_reflect_Field_getLongDirect_java_lang_Object_R_long(jcontext ctx, jobject self, jobject object) {
+    return *(jlong *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setLongDirect_java_lang_Object_long(jcontext ctx, jobject self, jobject object, jlong value) {
+    *(jlong *) fieldAddress(ctx, self, object) = value;
+}
+
+jfloat M_java_lang_reflect_Field_getFloatDirect_java_lang_Object_R_float(jcontext ctx, jobject self, jobject object) {
+    return *(jfloat *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setFloatDirect_java_lang_Object_float(jcontext ctx, jobject self, jobject object, jfloat value) {
+    *(jfloat *) fieldAddress(ctx, self, object) = value;
+}
+
+jdouble M_java_lang_reflect_Field_getDoubleDirect_java_lang_Object_R_double(jcontext ctx, jobject self, jobject object) {
+    return *(jdouble *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setDoubleDirect_java_lang_Object_double(jcontext ctx, jobject self, jobject object, jdouble value) {
+    *(jdouble *) fieldAddress(ctx, self, object) = value;
+}
+
+jbool M_java_lang_reflect_Field_getBooleanDirect_java_lang_Object_R_boolean(jcontext ctx, jobject self, jobject object) {
+    return *(jbool *) fieldAddress(ctx, self, object);
+}
+
+void M_java_lang_reflect_Field_setBooleanDirect_java_lang_Object_boolean(jcontext ctx, jobject self, jobject object, jbool value) {
+    *(jbool *) fieldAddress(ctx, self, object) = value;
+}
+
 static ffi_type *typeToFFI(jclass type) {
     if (type == &class_byte) return &ffi_type_sint8;
     else if (type == &class_short) return &ffi_type_sint16;
