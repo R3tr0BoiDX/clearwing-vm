@@ -19,7 +19,7 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
         FrameInfo frameInfo { "java/lang/Thread:threadEntrypoint", 1 };
         auto frameRef = pushStackFrame(ctx, &frameInfo, frame);
 
-        thread->F_started = true;
+        thread->F_started = true; // For the main thread, Thread.start sets these for the others
         thread->F_alive = true;
 
         tryCatch(frameRef, [&]{
@@ -93,8 +93,16 @@ void M_java_lang_Thread_start(jcontext ctx, jobject self) {
     protectObject((jobject)thread);
     thread->F_nativeContext = (intptr_t) newContext;
     newContext->thread = thread;
+    // Alive from start() on, like the JDK, or a join() right after start() could return before the thread ran
+    thread->F_started = true;
+    thread->F_alive = true;
     newContext->nativeThread = new std::thread;
-    *newContext->nativeThread = std::thread(threadEntrypoint, newContext, thread);
+    try {
+        *newContext->nativeThread = std::thread(threadEntrypoint, newContext, thread);
+    } catch (std::system_error &) {
+        thread->F_alive = false;
+        throwRuntimeException(ctx, "Unable to create a thread");
+    }
 }
 
 void M_java_lang_Thread_interrupt(jcontext ctx, jobject self) {
