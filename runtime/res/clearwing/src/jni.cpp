@@ -1611,6 +1611,7 @@ static int vmAttachThread(jvm, void **penv, void *args) {
         return JNI_ERR;
     }
     thread->F_alive = true;
+    thread->F_started = true;
     thread->F_nativeContext = (jlong)ctx;
     ctx->thread = thread;
     attachThread(ctx);
@@ -1632,6 +1633,7 @@ JNIInvokeInterface_ invokeInterfaceInst{
             return JNI_EDETACHED;
         makeEphemeral((jobject)ctx->thread);
         ctx->thread->F_alive = false;
+        ctx->thread->F_finished = true;
         detachThread();
         destroyContext(ctx);
         return JNI_OK;

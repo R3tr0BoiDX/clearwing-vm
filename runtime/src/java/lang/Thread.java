@@ -61,6 +61,7 @@ public class Thread implements java.lang.Runnable{
     private volatile boolean parkPermit; // LockSupport
     private long id;
     private volatile boolean started;
+    private volatile boolean finished; // isAlive is started and not finished; alive is what the GC sees (running)
     private long nativeContext;
 
     private volatile UncaughtExceptionHandler uncaughtExceptionHandler;
@@ -156,7 +157,7 @@ public class Thread implements java.lang.Runnable{
      * Tests if this thread is alive. A thread is alive if it has been started and has not yet died.
      */
     public final boolean isAlive(){
-        return alive;
+        return started && !finished;
     }
 
     public static boolean interrupted() {
@@ -182,7 +183,7 @@ public class Thread implements java.lang.Runnable{
      * Waits for this thread to die.
      */
     public final synchronized void join() throws java.lang.InterruptedException {
-        while (alive)
+        while (isAlive())
             wait();
     }
 
@@ -193,7 +194,7 @@ public class Thread implements java.lang.Runnable{
         }
         long delay = millis;
         long start = System.currentTimeMillis();
-        while (alive && delay > 0) {
+        while (isAlive() && delay > 0) {
             wait(delay);
             delay = millis - (System.currentTimeMillis() - start);
         }
@@ -304,7 +305,7 @@ public class Thread implements java.lang.Runnable{
     }
 
     public State getState() {
-        return !started ? State.NEW : alive ? State.RUNNABLE : State.TERMINATED;
+        return !started ? State.NEW : !finished ? State.RUNNABLE : State.TERMINATED;
     }
 
     public final ThreadGroup getThreadGroup() {

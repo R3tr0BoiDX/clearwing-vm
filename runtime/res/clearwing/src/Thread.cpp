@@ -47,6 +47,7 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
     auto monitor = getMonitor((jobject) thread);
     monitor->lock.lock();
     thread->F_alive = false;
+    thread->F_finished = true;
     {
         std::lock_guard<std::mutex> lock(monitor->conditionMutex);
         monitor->condition.notify_all();
@@ -93,14 +94,14 @@ void M_java_lang_Thread_start(jcontext ctx, jobject self) {
     protectObject((jobject)thread);
     thread->F_nativeContext = (intptr_t) newContext;
     newContext->thread = thread;
-    // Alive from start() on, like the JDK, or a join() right after start() could return before the thread ran
+    // Alive (isAlive) from start() on, like the JDK, or a join() right after start() could return before the
+    // thread ran. F_alive, which the GC waits for at safepoints, is only set once the thread runs
     thread->F_started = true;
-    thread->F_alive = true;
     newContext->nativeThread = new std::thread;
     try {
         *newContext->nativeThread = std::thread(threadEntrypoint, newContext, thread);
     } catch (std::system_error &) {
-        thread->F_alive = false;
+        thread->F_finished = true;
         throwRuntimeException(ctx, "Unable to create a thread");
     }
 }
