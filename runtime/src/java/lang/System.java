@@ -113,9 +113,7 @@ public final class System {
      */
     public static native int identityHashCode(java.lang.Object x);
 
-    public static long nanoTime() {
-        return currentTimeMillis() * 1000000;
-    }
+    public static native long nanoTime();
     
     public static SecurityManager getSecurityManager() {
         return null;

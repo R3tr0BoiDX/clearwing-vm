@@ -29,6 +29,10 @@ jlong SM_java_lang_System_currentTimeMillis_R_long(jcontext ctx) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+jlong SM_java_lang_System_nanoTime_R_long(jcontext ctx) {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 void SM_java_lang_System_exit0_int(jcontext ctx, jint code) {
     shutdownVM(ctx);
     exit(code);
