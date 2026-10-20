@@ -134,7 +134,8 @@ public class Formatter {
 					is = Double.toString(f);
 					int dot = is.lastIndexOf('.') + 1;
 					String post = is.substring(dot, Math.min(is.length(), dot + p));
-					is = is.substring(0, dot) + post;
+					// No decimals, no decimal point
+					is = p == 0 ? is.substring(0, dot - 1) : is.substring(0, dot) + post;
 				} else
 					is = Double.toString(f);
 				StringBuilder isb = new StringBuilder(is);
