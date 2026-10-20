@@ -18,6 +18,8 @@ public class Formatter {
 			"|({=int}({=flags}[ +0-]+)?({=width}[1-9][0-9]*)?d)" +
 			"|({=hex}({=flags}[0-]+)?({=width}[1-9][0-9]*)?({=case}[xX]))" +
 			"|({=float}({=flags}[ +0-]+)?({=width}[1-9][0-9]*)?({=pre}\\.({=precise}[0-9]+))?f)" +
+			"|({=general}({=flags}[ +-]+)?({=width}[1-9][0-9]*)?(?:\\.({=gprecise}[0-9]+))?g)" +
+			"|({=newline}n)" +
 			")");
 
 	private String formatted;
@@ -164,8 +166,45 @@ public class Formatter {
 						isb.insert(0, pad);
 				}
 				dest.append(isb.toString());
-			} else if (match.isCaptured("esc"))
+			} else if (match.isCaptured("general")) {
+				double f = ((Number)arguments[argIndex >= 0 ? argIndex : index++]).doubleValue();
+				StringBuilder isb = new StringBuilder(general(f, match.isCaptured("gprecise") ? Integer.parseInt(match.group("gprecise")) : 6));
+				String flags = match.isCaptured("flags") ? match.group("flags") : "";
+				if (flags.contains("+") && isb.charAt(0) != '-')
+					isb.insert(0, '+');
+				else if (flags.contains(" ") && isb.charAt(0) != '-')
+					isb.insert(0, ' ');
+				int width = match.isCaptured("width") ? Integer.parseInt(match.group("width")) : -1;
+				while (isb.length() < width) {
+					if (flags.contains("-"))
+						isb.append(' ');
+					else
+						isb.insert(0, ' ');
+				}
+				dest.append(isb.toString());
+			} else if (match.isCaptured("newline"))
+				dest.append('\n');
+			else if (match.isCaptured("esc"))
 				dest.append('%');
+		}
+
+		/** %g: rounded to precision significant digits, in decimal notation from 10^-4 up to 10^precision, else in
+		 *  scientific notation, as java.util.Formatter does */
+		static String general (double f, int precision) {
+			if (Double.isNaN(f) || Double.isInfinite(f))
+				return Double.toString(f);
+			if (precision == 0)
+				precision = 1;
+			if (f == 0)
+				return java.math.BigDecimal.ZERO.setScale(precision - 1).toPlainString();
+			java.math.BigDecimal rounded = java.math.BigDecimal.valueOf(f).round(new java.math.MathContext(precision, java.math.RoundingMode.HALF_UP));
+			int exponent = rounded.precision() - rounded.scale() - 1;
+			double magnitude = Math.abs(rounded.doubleValue());
+			if (magnitude >= 1e-4 && magnitude < Math.pow(10, precision))
+				return rounded.setScale(Math.max(0, precision - 1 - exponent), java.math.RoundingMode.HALF_UP).toPlainString();
+			String mantissa = rounded.movePointLeft(exponent).setScale(precision - 1, java.math.RoundingMode.HALF_UP).toPlainString();
+			int e = Math.abs(exponent);
+			return mantissa + (exponent < 0 ? "e-" : "e+") + (e < 10 ? "0" : "") + e;
 		}
 
 		private static final int bufLen = 16;  // Max number of hex digits in a long
