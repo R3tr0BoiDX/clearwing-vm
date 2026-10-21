@@ -29,6 +29,11 @@ jbool M_java_io_File_delete_R_boolean(jcontext ctx, jobject self) {
     return !std::remove(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path));
 }
 
+jbool M_java_io_File_renameTo0_java_lang_String_R_boolean(jcontext ctx, jobject self, jobject dest) {
+    auto from = stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path);
+    return !std::rename(from, stringToNative(ctx, (jstring) NULL_CHECK(dest)));
+}
+
 jbool M_java_io_File_exists_R_boolean(jcontext ctx, jobject self) {
     struct stat s{};
     return !stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s);

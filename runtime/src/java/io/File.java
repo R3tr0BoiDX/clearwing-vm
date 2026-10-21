@@ -243,8 +243,10 @@ public class File {
 	}
 
 	public boolean renameTo (File f) {
-		return false;
+		return renameTo0(f.path);
 	}
+
+	private native boolean renameTo0 (String dest);
 
 	public boolean setExecutable (boolean b) {
 		return false;
