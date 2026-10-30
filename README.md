@@ -1,11 +1,19 @@
 # Clearwing VM
-[![Release](https://jitpack.io/v/com.thelogicmaster/clearwing-vm.svg)](https://jitpack.io/#com.thelogicmaster/clearwing-vm)
+
+**This is the `delver-port` fork** used by [delverengine-nx](https://github.com/R3tr0BoiDX/delverengine-nx), the
+Nintendo Switch port of Delver, through its [switch-gdx fork](https://github.com/R3tr0BoiDX/switch-gdx/tree/delver-port).
+Upstream is [TheLogicMaster/clearwing-vm](https://github.com/TheLogicMaster/clearwing-vm). The fork fixes runtime bugs
+the port ran into (threads, monitors, files, reflection for Kryo, class initialization, the GC's hand-off) and makes
+the runtime faster (pooled allocations, batched frees, non-volatile frames, cached string literals, a sampling
+profiler; see the commit log). It drops upstream's example project and JitPack publishing: build it from source and
+install it into the local Maven repository (`./gradlew :transpiler:publishShadowPublicationToMavenLocal`), as version
+`3.1.3-delver`. Upstream's newer exception model (2025) is not merged.
 
 ## About
 This is a Java to C++ transpiler based on the CodenameOne Parpar VM. It was created for use in 
 [SwitchGDX](https://github.com/TheLogicMaster/switch-gdx), the Nintendo Switch Homebrew and Xbox UWP backend for
 the [LibGDX](https://libgdx.com) game framework. It features a stripped down runtime library and produces native
-executables that don't require a VM to run. A minimal example based on Gradle and CMake is provided.
+executables that don't require a VM to run.
 
 ```mermaid
 flowchart LR
@@ -52,16 +60,16 @@ flowchart LR
 
 ## Usage
 The transpiler is provided as a fat JAR which can be used as a standalone commandline tool or integrated into a 
-build system. An example is provided for a simple Gradle based project which produces and builds a CMake C++ 
-project. Command line arguments are used for specifying the input and output directories as well as a JSON config
+build system (see `switch/build.gradle` in delverengine-nx for a Gradle task that transpiles a game and builds the
+generated CMake project). Command line arguments are used for specifying the input and output directories as well as a JSON config
 file for further configuration of transpiler options. The transpiler is also provided as a normal Java library 
 which could be used programmatically. Java 17 is what the transpiler has been tested with.
 
-JitPack Maven artifacts:
+Maven artifacts (installed locally, see above):
 ```
-'com.thelogicmaster.clearwing-vm:transpiler:{version}'     // Fat JAR
-'com.thelogicmaster.clearwing-vm:transpiler-lib:{version}' // Library JAR
-'com.thelogicmaster.clearwing-vm:annotations:{version}'    // Annotations
+'com.thelogicmaster.clearwing-vm:transpiler:3.1.3-delver'     // Fat JAR
+'com.thelogicmaster.clearwing-vm:transpiler-lib:3.1.3-delver' // Library JAR
+'com.thelogicmaster.clearwing-vm:annotations:3.1.3-delver'    // Annotations
 ```
 
 The following command line arguments are provided:
@@ -78,14 +86,14 @@ The JSON file specified by the `config` command line argument is loaded in addit
 and `**` expands to anything. 
 
 The available options are as follows:
-- __nonOptimized__: Patterns for classes to not optimize out even if unused
+- __nonOptimized__: Patterns for classes to not optimize out even if unused (`reflective` is an older name, added to it)
 - __intrinsics__: A list of methods to treat as native so that they can be patched (For example, `java.lang.Integer.toString()Ljava/lang/String;`)
 - __sourceIgnores__: Patterns for source files to ignore for jnigen style inlined C++
 - __generateProjectFiles__: Whether to generate basic project files like the CMake config
 - __mainClass__: An optional "main class" that contains the entrypoint main function
-- __useLineNumbers__: Enable stack trace line numbers (Requires stack traces, disable for a slight performance increase) (Not yet used)
-- __useValueChecks__: Enable type/NPE checks at runtime, has substantial performance overhead (Not yet used)
-- __useStackCookies__: Enable Java stack cookies (Only needed for debugging VM) (Not yet used)
+- __useLineNumbers__: Enable stack trace line numbers (default true; disable for a slight performance increase)
+- __useValueChecks__: Enable null, cast and array bounds checks that throw Java exceptions (default true; without
+  them such bugs crash instead)
 
 ## Native Code
 Native C++ code can be used with the project in a ways. The easiest way is to add native functions with trailing
@@ -100,7 +108,7 @@ have bindings written for them.
 
 ## Building
 As a Gradle project, there are tasks for building the needed components. JDK 17 is what has been tested with.
-The runtime and example submodules get built with a language level of 8, and the transpiler uses language level 14.
+The runtime gets built with a language level of 8, and the transpiler uses language level 14.
 When building the runtime in an Intellij, `Build>>Rebuild Project` may be necessary after making changes. 
 
 ## Technical Details
