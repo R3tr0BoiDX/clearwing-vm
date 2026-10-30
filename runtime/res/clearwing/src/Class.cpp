@@ -7,12 +7,29 @@
 
 #include <cstring>
 #include <algorithm>
+#include <atomic>
+#include <mutex>
+
+// Held while a class's reflection data is built. Recursive: building it can need another class's
+static std::recursive_mutex initLock;
 
 extern "C" {
 
 void M_java_lang_Class_ensureInitialized(jcontext ctx, jobject selfObj) {
     auto self = (jclass) NULL_CHECK(selfObj);
-    if (self->initialized) // Todo: Should be made thread safe
+    // Acquire pairs with the release store at the end, so a thread that sees the flag also sees the arrays
+    if (std::atomic_ref(self->initialized).load(std::memory_order_acquire))
+        return;
+
+    if (!initLock.try_lock()) {
+        // Wait suspended, like monitorEnter, so a GC started by the building thread doesn't wait for this one
+        ctx->suspended = true;
+        initLock.lock();
+        ctx->suspended = false;
+    }
+    std::lock_guard guard(initLock, std::adopt_lock);
+    SAFEPOINT();
+    if (std::atomic_ref(self->initialized).load(std::memory_order_relaxed))
         return;
 
     auto nameStr = std::string((const char *) self->nativeName);
@@ -78,7 +95,7 @@ void M_java_lang_Class_ensureInitialized(jcontext ctx, jobject selfObj) {
             ((java_lang_reflect_Field **) fields->data)[i]->F_annotations = (intptr_t) createArrayEternal(ctx, &class_java_lang_annotation_Annotation, 0);
     }
 
-    self->initialized = true;
+    std::atomic_ref(self->initialized).store(true, std::memory_order_release);
 }
 
 jobject SM_java_lang_Class_forName_java_lang_String_R_java_lang_Class(jcontext ctx, jobject nameObj) {

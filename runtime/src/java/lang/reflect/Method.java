@@ -34,7 +34,7 @@ public class Method {
         this.modifiers = modifiers;
     }
 
-    private void ensureSignatureInitialized() {
+    private synchronized void ensureSignatureInitialized() { // Synchronized: threads must see both arrays complete
         if (parameterTypes != null && returnType != null)
             return;
 
