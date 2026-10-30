@@ -56,6 +56,9 @@ static ankerl::unordered_dense::set<jobject> *rootObjects;
 static std::vector<jobject> collectedObjects;
 static std::multimap<jobject, jweak> weakReferences;
 static std::mutex objectsLock;
+static std::condition_variable collectedCondition; // collectedObjects got objects to free (with objectsLock)
+static std::mutex suspendMutex;
+static std::condition_variable suspendCondition; // suspendVM was cleared (with suspendMutex)
 static jthread collectionThread;
 static std::map<std::string, jclass> *classes;
 static std::recursive_mutex criticalLock;
@@ -151,7 +154,12 @@ void shutdownVM(jcontext ctx) {
     }
     auto timeout = std::chrono::system_clock::now() + std::chrono::seconds(10);
     while (std::chrono::system_clock::now() < timeout) {
-        suspendVM = true;
+        {
+            std::lock_guard lock(suspendMutex);
+            suspendVM = true;
+        }
+        suspendCondition.notify_all();
+        collectedCondition.notify_all();
         bool done = true;
         for (auto threadContext : threadContexts) { // Todo: Should be locked for
             if (threadContext->dead) continue;
@@ -661,13 +669,15 @@ static void collectionThreadFunc(jcontext ctx) {
         FrameInfo frameInfo{ "GC:collect", 0 };
         auto frameRef = pushStackFrame(ctx, &frameInfo, nullptr, nullptr);
 
-        while (true) { // Todo
-            objectsLock.lock();
-            if (!collectedObjects.empty()) {
-                collected = collectedObjects;
-                collectedObjects.clear();
+        while (true) {
+            {
+                // Sleeps until a collection hands over objects (the GC never waits for this thread)
+                std::unique_lock lock(objectsLock);
+                collectedCondition.wait(lock, []{ return !collectedObjects.empty() || exiting; });
+                if (exiting)
+                    throw ExitException();
+                collected.swap(collectedObjects);
             }
-            objectsLock.unlock();
 
             if (!collected.empty()) {
                 // Most classes don't override finalize, and those of strings and arrays (most of the garbage) can't
@@ -714,8 +724,6 @@ static void collectionThreadFunc(jcontext ctx) {
                 collected.clear();
             }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
             SAFEPOINT();
         }
     } catch (ExitException &) { }
@@ -727,7 +735,6 @@ static void collectionThreadFunc(jcontext ctx) {
 /// Runs the garbage collector
 void runGC(jcontext ctx) {
     static std::atomic_bool running;
-    static std::mutex suspendMutex;
 
     if (running.exchange(true))
         return;
@@ -902,12 +909,17 @@ void runGC(jcontext ctx) {
 
     allocationsSinceCollection = 0;
 
+    bool collected = !collectedObjects.empty();
     objectsGuard.unlock();
+    if (collected)
+        collectedCondition.notify_one();
+
     releaseCriticalLock();
     {
         std::lock_guard lock(suspendMutex);
         suspendVM = false;
     }
+    suspendCondition.notify_all();
 
 #if false // Todo: Use macro
     auto finishTime = std::chrono::system_clock::now();
@@ -978,11 +990,14 @@ void safepointSlow(jcontext ctx) {
 /// Suspends a thread while the VM is suspended. Does not throw exceptions.
 void safepointSuspend(jcontext ctx) {
     ctx->suspended = true;
-    while (suspendVM) {
-        if (exiting)
-            throw ExitException();
-        std::this_thread::sleep_for(std::chrono::microseconds(50)); // The GC thread may need this core
+    {
+        // Waits instead of polling: the waiting threads may have a higher priority than the collecting thread on
+        // its core (the Switch doesn't time slice)
+        std::unique_lock lock(suspendMutex);
+        suspendCondition.wait(lock, []{ return !suspendVM || exiting; });
     }
+    if (exiting)
+        throw ExitException();
     ctx->suspended = false;
 }
 
