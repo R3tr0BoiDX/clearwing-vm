@@ -44,13 +44,13 @@ publishing {
         shadow(MavenPublication) {
             groupId project.group
             artifactId project.name
-            version project.version + (System.env.JITPACK ? "" : "-dev")
+            version project.version
             artifact shadowJar
         }
         maven(MavenPublication) {
             groupId project.group
             artifactId project.name + "-lib"
-            version project.version + (System.env.JITPACK ? "" : "-dev")
+            version project.version
             artifact jar
         }
     }

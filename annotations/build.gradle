@@ -12,7 +12,7 @@ publishing {
         maven(MavenPublication) {
             groupId project.group
             artifactId project.name
-            version project.version + (System.env.JITPACK ? "" : "-dev")
+            version project.version
             from components.java
         }
     }
