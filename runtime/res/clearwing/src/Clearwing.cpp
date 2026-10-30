@@ -763,6 +763,9 @@ void runGC(jcontext ctx) {
     auto copyTime = std::chrono::system_clock::now();
 
     acquireCriticalLock();
+    // The collection thread isn't suspended: keep it from erasing objects of the last collection while this one
+    // walks them, and from taking collectedObjects while it is filled
+    std::unique_lock objectsGuard(objectsLock);
 
     static jint mark;
     if (++mark > GC_MARK_END)
@@ -827,7 +830,9 @@ void runGC(jcontext ctx) {
 
     // Collect unreachable objects
     for (jobject obj : *objects) {
-        if ((obj->gcMark > GC_MARK_COLLECTED && obj->gcMark < GC_MARK_START) || obj->gcMark == mark)
+        // Collected objects are still here until the collection thread has freed them: collecting them again would
+        // free them twice
+        if ((obj->gcMark >= GC_MARK_COLLECTED && obj->gcMark < GC_MARK_START) || obj->gcMark == mark)
             continue;
         obj->gcMark = GC_MARK_COLLECTED;
         collectedObjects.emplace_back(obj);
@@ -897,6 +902,7 @@ void runGC(jcontext ctx) {
 
     allocationsSinceCollection = 0;
 
+    objectsGuard.unlock();
     releaseCriticalLock();
     {
         std::lock_guard lock(suspendMutex);
