@@ -875,25 +875,25 @@ jint longCompare(jlong value1, jlong value2);
 
 using std::bit_cast;
 
-#ifdef USE_VALUE_CHECKS
+#if USE_VALUE_CHECKS
 #define NULL_CHECK(object) nullCheck(ctx, object)
 #else
 #define NULL_CHECK(object) (object)
 #endif
 
-#ifdef USE_VALUE_CHECKS
+#if USE_VALUE_CHECKS
 #define CHECK_CAST(type, object) checkCast(ctx, object)
 #else
 #define CHECK_CAST(type, object) (object)
 #endif
 
-#ifdef USE_VALUE_CHECKS
+#if USE_VALUE_CHECKS
 #define ARRAY_ACCESS(type, obj, index) (((type *) arrayBoundsCheck(ctx, (jarray) obj, index)->data)[index])
 #else
 #define ARRAY_ACCESS(type, obj, index) (((type *) ((jarray) obj)->data)[index])
 #endif
 
-#ifdef USE_LINE_NUMBERS
+#if USE_LINE_NUMBERS
 #define LINE_NUMBER(line) frameRef->lineNumber = line
 #else
 #define LINE_NUMBER(line) SEMICOLON_RECEPTOR
