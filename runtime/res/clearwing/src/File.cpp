@@ -54,11 +54,7 @@ jlong M_java_io_File_lastModified_R_long(jcontext ctx, jobject self) {
     struct stat s{};
     if (stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s))
         return 0;
-#if defined(__WIN32__) || defined(__WINRT__) || defined(__APPLE__)
     return s.st_mtime;
-#else
-    return s.st_mtim.tv_sec;
-#endif
 }
 
 jlong M_java_io_File_length_R_long(jcontext ctx, jobject self) {
